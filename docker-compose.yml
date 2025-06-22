@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  mobile:
+    build:
+      context: .
+      dockerfile: docker/mobile.Dockerfile
+    ports:
+      - "8081:8081"
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+    volumes:
+      - ./mobile:/app
+    stdin_open: true
+    tty: true
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web:/app
+    stdin_open: true
+    tty: true
