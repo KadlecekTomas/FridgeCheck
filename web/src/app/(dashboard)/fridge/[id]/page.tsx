@@ -3,6 +3,7 @@ import { FoodList } from '@/components/fridge/FoodList'
 import { FoodStatusStats } from '@/components/fridge/FoodStatusStats'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 export default async function FridgeDetailPage({ params }: { params: { id: string } }) {
@@ -46,10 +47,21 @@ export default async function FridgeDetailPage({ params }: { params: { id: strin
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-2">Lednice: {fridge.name}</h1>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-2xl font-bold">Lednice: {fridge.name}</h1>
+        {foodCount > 0 && (
+          <Link
+            href={'/dashboard/add-fridge'}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+          >
+            Přidat potraviny
+          </Link>
+        )}
+      </div>
       <p className="text-sm text-gray-500 mb-6">
         Vytvořeno: {new Date(fridge.created_at).toLocaleString()}
       </p>
+
 
       {/* Statistiky potravin */}
       <FoodStatusStats foods={foods || []} />
