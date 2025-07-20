@@ -1,7 +1,8 @@
+// app/dashboard/layout.tsx
 import { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/server';
-import Navbar from '@/components/ui/Navbar';
+import ClientLayout from './ClientLayout';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const user = await getCurrentUser();
@@ -10,12 +11,5 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     redirect('/login');
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 text-gray-800">
-      <Navbar />
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {children}
-      </main>
-    </div>
-  );
+  return <ClientLayout>{children}</ClientLayout>;
 }

@@ -1,52 +1,75 @@
-'use client';
+'use client'
 
-import { Formik, Form, Field, ErrorMessage } from 'formik';
-import * as Yup from 'yup';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { supabaseBrowser } from '@/lib/auth/client';
+import { Formik, Form, Field, ErrorMessage } from 'formik'
+import * as Yup from 'yup'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { supabaseBrowser } from '@/lib/auth/client'
 
 export default function NewFoodPage() {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const fridgeId = searchParams?.get('fridgeId')
+
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const supabase = supabaseBrowser()
+      const { data } = await supabase.auth.getUser()
+      if (data?.user?.id) setUserId(data.user.id)
+      else setError('Nepodařilo se získat ID uživatele')
+    }
+
+    fetchUser()
+  }, [])
 
   const initialValues = {
     name: '',
     expiration_date: '',
-  };
+  }
 
   const validationSchema = Yup.object({
     name: Yup.string().required('Název je povinný'),
     expiration_date: Yup.string().required('Datum expirace je povinné'),
-  });
+  })
 
   const handleSubmit = async (
     values: typeof initialValues,
     { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
   ) => {
-    setError(null);
-    setLoading(true);
+    setError(null)
+    setLoading(true)
+
     try {
-      const supabase = supabaseBrowser();
+      if (!fridgeId || !userId) {
+        setError('Chybí ID lednice nebo uživatele.')
+        return
+      }
+
+      const supabase = supabaseBrowser()
       const { error } = await supabase.from('foods').insert({
         name: values.name,
         expiration_date: values.expiration_date,
-      });
+        fridge_id: fridgeId,
+        added_by_user: userId,
+      })
 
       if (error) {
-        setError(error.message);
+        setError(error.message)
       } else {
-        router.push('/foods');
+        router.push(`/fridge/${fridgeId}`)
       }
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError('Neznámá chyba při ukládání');
+      if (err instanceof Error) setError(err.message)
+      else setError('Neznámá chyba při ukládání')
     } finally {
-      setSubmitting(false);
-      setLoading(false);
+      setSubmitting(false)
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -103,5 +126,5 @@ export default function NewFoodPage() {
         </Formik>
       </div>
     </div>
-  );
+  )
 }

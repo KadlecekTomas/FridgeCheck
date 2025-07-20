@@ -1,30 +1,83 @@
 'use client'
 
-import { useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabaseBrowser } from '@/lib/auth/client'
+import EmptyState from '@/components/dashboard/EmptyState'
+import StatsOverview from '@/components/dashboard/StatsOverview'
+import FridgeSelector from '@/components/fridge/FridgeSelector'
 
-export default function Home() {
+type Fridge = {
+  id: string
+  name: string
+  created_at: string | null
+  invite_code: string | null
+  owner_id: string | null
+}
+
+export default function HomePage() {
+  const [fridges, setFridges] = useState<Fridge[]>([])
+  const [selectedFridgeId, setSelectedFridgeId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    const url = new URL(window.location.href)
+    const fetchFridges = async () => {
+      const supabase = supabaseBrowser()
+      const { data: { session } } = await supabase.auth.getSession()
 
-    const hasAccessToken = url.hash.includes('access_token')
-    if (hasAccessToken) {
-      const params = new URLSearchParams(url.hash.slice(1))
-      const access_token = params.get('access_token')
-      const refresh_token = params.get('refresh_token')
-
-      if (access_token && refresh_token) {
-        supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        })
+      if (!session?.user) {
+        router.push('/login')
+        return
       }
 
-      // 🧹 Vyčisti URL – smaž hash
-      history.replaceState(null, '', window.location.pathname)
+      const { data, error } = await supabase
+        .from('fridges')
+        .select('*')
+        .eq('owner_id', session.user.id)
+
+      if (error) {
+        console.error(error.message)
+      } else {
+        setFridges(data || [])
+
+        const saved = localStorage.getItem('active_fridge')
+        const defaultId = saved || data?.[0]?.id || null
+        setSelectedFridgeId(defaultId)
+      }
+
+      setLoading(false)
     }
+
+    fetchFridges()
   }, [])
 
-  return <div>Jsi přihlášený.</div>
+  const handleSelectFridge = (id: string) => {
+    setSelectedFridgeId(id)
+    localStorage.setItem('active_fridge', id)
+  }
+
+  if (loading) return <p className="p-6">Načítání...</p>
+
+  return (
+    <div className="p-6 space-y-6">
+      {fridges.length > 0 ? (
+        <>
+          {/* výběr lednice */}
+          <FridgeSelector
+            onSelect={handleSelectFridge}
+          />
+
+          {/* přehled statistik pro aktivní lednici */}
+          {selectedFridgeId ? (
+            <StatsOverview fridgeId={selectedFridgeId} />
+          ) : (
+            <p>Vyber lednici pro zobrazení dat.</p>
+          )}
+        </>
+      ) : (
+        <EmptyState />
+      )}
+    </div>
+  )
 }

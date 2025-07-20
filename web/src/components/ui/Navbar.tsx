@@ -19,6 +19,7 @@ export default function Navbar() {
       <div className="flex space-x-4">
         <Link href="/foods" className="text-gray-800 hover:underline">Potraviny</Link>
         <Link href="/foods/new" className="text-gray-800 hover:underline">Přidat</Link>
+        <Link href="/fridge" className="text-gray-800 hover:underline">Fridge</Link>
       </div>
 
       <div className="flex items-center space-x-4">
