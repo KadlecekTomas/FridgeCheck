@@ -4,7 +4,7 @@ export default function EmptyState({
   title = 'Nic tu zatím není',
   description = 'Přidej si první potraviny, ať můžeš začít sledovat expirace.',
   actionText = 'Přidat potraviny',
-  actionHref = '/dashboard/add-fridge',
+  actionHref = '/fridge/new',
   fridgeId,
 }: {
   title?: string

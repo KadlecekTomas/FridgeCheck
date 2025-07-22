@@ -9,29 +9,20 @@ import * as Yup from 'yup'
 export default function NewFoodPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const fridgeId = searchParams?.get('fridgeId')
+  const storageUnitId = searchParams?.get('fridgeId')
 
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [householdId, setHouseholdId] = useState<string | null>(null)
   const [fridgeAccessVerified, setFridgeAccessVerified] = useState(false)
 
   useEffect(() => {
     const verifyAccess = async () => {
-      if (!fridgeId) {
-        return (
-          <div className="p-6 text-center">
-            <p className="text-red-600 mb-4">Neplatný odkaz – nebyla specifikována lednice.</p>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="text-sm text-green-600 hover:underline"
-            >
-              ← Zpět na hlavní stránku
-            </button>
-          </div>
-        )
+      if (!storageUnitId) {
+        setError('Neplatný odkaz – nebyla specifikována lednice.')
+        return
       }
-
 
       const supabase = supabaseBrowser()
       const { data: userData, error: userError } = await supabase.auth.getUser()
@@ -44,42 +35,43 @@ export default function NewFoodPage() {
 
       setUserId(currentUser.id)
 
-      // Check if user is owner
-      const { data: fridge, error: fridgeError } = await supabase
-        .from('fridges')
+      // Získání storage unit
+      const { data: unit, error: unitError } = await supabase
+        .from('storage_units')
         .select('*')
-        .eq('id', fridgeId)
+        .eq('id', storageUnitId)
         .single()
 
-      if (fridgeError || !fridge) {
-        setError('Lednice nenalezena.')
+      if (unitError || !unit) {
+        setError('Úložiště nenalezeno.')
         return
       }
 
-      const isOwner = fridge.owner_id === currentUser.id
+      setHouseholdId(unit.household_id)
+
+      const isOwner = unit.owner_id === currentUser.id
 
       if (isOwner) {
         setFridgeAccessVerified(true)
         return
       }
 
-      // Otherwise check if user is member
       const { data: membership } = await supabase
-        .from('fridge_members')
+        .from('storage_unit_members')
         .select('*')
-        .eq('fridge_id', fridgeId)
+        .eq('storage_unit_id', storageUnitId)
         .eq('user_id', currentUser.id)
         .maybeSingle()
 
       if (membership) {
         setFridgeAccessVerified(true)
       } else {
-        setError('Nemáš přístup k této lednici.')
+        setError('Nemáš přístup k tomuto úložišti.')
       }
     }
 
     verifyAccess()
-  }, [fridgeId])
+  }, [storageUnitId])
 
   const initialValues = {
     name: '',
@@ -99,8 +91,8 @@ export default function NewFoodPage() {
     setLoading(true)
 
     try {
-      if (!fridgeId || !userId) {
-        setError('Chybí ID lednice nebo uživatele.')
+      if (!storageUnitId || !userId || !householdId) {
+        setError('Chybí ID lednice, domácnosti nebo uživatele.')
         return
       }
 
@@ -108,14 +100,15 @@ export default function NewFoodPage() {
       const { error } = await supabase.from('foods').insert({
         name: values.name,
         expiration_date: values.expiration_date,
-        fridge_id: fridgeId,
+        storage_unit_id: storageUnitId,
+        household_id: householdId,
         added_by_user: userId,
       })
 
       if (error) {
         setError(error.message)
       } else {
-        router.push(`/fridge/${fridgeId}`)
+        router.push(`/storage/${storageUnitId}`)
       }
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message)
@@ -126,7 +119,7 @@ export default function NewFoodPage() {
     }
   }
 
-  if (!fridgeId) {
+  if (!storageUnitId) {
     return (
       <div className="p-6 text-center">
         <p className="text-red-600 mb-4">Neplatný odkaz – nebyla specifikována lednice.</p>

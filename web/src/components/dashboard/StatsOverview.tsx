@@ -19,7 +19,7 @@ export default function StatsOverview({ fridgeId }: { fridgeId: string }) {
       const { data: foods, error: foodError } = await supabase
         .from('foods')
         .select('expiration_date')
-        .eq('fridge_id', fridgeId)
+        .eq('storage_unit_id', fridgeId)
 
       if (foodError) {
         console.error('Chyba při načítání potravin:', foodError.message)

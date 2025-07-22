@@ -1,40 +1,13 @@
 'use client';
 
-import Link from 'next/link';
-import { useUser } from '@/lib/hooks/useUser';
-import { signOut } from '@/lib/auth/client';
-import { useRouter } from 'next/navigation';
+import { useLayout } from '@/context/LayoutContext';
+import AuthNavbar from './navbar/AuthNavbar';
+import UnauthNavbar from './navbar/UnauthNavbar';
 
 export default function Navbar() {
-  const { user, loading } = useUser();
-  const router = useRouter();
+  const { layout } = useLayout();
 
-  const handleLogout = async () => {
-    await signOut();
-    router.push('/login');
-  };
-
-  return (
-    <nav className="bg-white shadow p-4 flex justify-between items-center mb-6">
-      <div className="flex space-x-4">
-        <Link href="/foods" className="text-gray-800 hover:underline">Potraviny</Link>
-        <Link href="/foods/new" className="text-gray-800 hover:underline">Přidat</Link>
-        <Link href="/fridge" className="text-gray-800 hover:underline">Fridge</Link>
-      </div>
-
-      <div className="flex items-center space-x-4">
-        {!loading && user && (
-          <>
-            <span className="text-sm text-gray-600 hidden sm:inline">{user.email}</span>
-            <button
-              onClick={handleLogout}
-              className="text-sm bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-            >
-              Odhlásit se
-            </button>
-          </>
-        )}
-      </div>
-    </nav>
-  );
+  if (layout === 'auth') return <AuthNavbar />;
+  if (layout === 'unauth') return <UnauthNavbar />;
+  return null; // fallback
 }
