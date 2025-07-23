@@ -3,8 +3,8 @@ import Link from 'next/link'
 export default function EmptyState({
   title = 'Nic tu zatím není',
   description = 'Přidej si první potraviny, ať můžeš začít sledovat expirace.',
-  actionText = 'Přidat potraviny',
-  actionHref = '/fridge/new',
+  actionText = 'Přidat skladovací místo',
+  actionHref = '/storage/new',
   fridgeId,
 }: {
   title?: string

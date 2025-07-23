@@ -28,10 +28,15 @@ export default function NewHouseholdPage() {
       return
     }
 
-    // 1. Vytvoř domácnost
+    const userId = session.user.id
+
+    // 1. Vytvoř domácnost s owner_id
     const { data: household, error: householdError } = await supabase
       .from('households')
-      .insert({ name })
+      .insert({
+        name,
+        owner_id: userId
+      })
       .select()
       .single()
 
@@ -41,12 +46,14 @@ export default function NewHouseholdPage() {
       return
     }
 
-    // 2. Přidej current user jako člena
+    // 2. Přidej ownera jako člena
     const { error: memberError } = await supabase
       .from('household_members')
       .insert({
-        user_id: session.user.id,
+        user_id: userId,
         household_id: household.id,
+        role: 'owner', // přidej roli, pokud používáš
+        joined_at: new Date().toISOString()
       })
 
     if (memberError) {
@@ -55,9 +62,10 @@ export default function NewHouseholdPage() {
       return
     }
 
-    // 3. Přesměruj zpět na dashboard
+    // 3. Přesměruj na dashboard
     router.push('/dashboard')
   }
+
 
   return (
     <div className="p-6 max-w-md mx-auto space-y-4">

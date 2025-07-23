@@ -6,6 +6,8 @@ import { supabaseBrowser } from '@/lib/auth/client'
 import EmptyState from '@/components/dashboard/EmptyState'
 import StatsOverview from '@/components/dashboard/StatsOverview'
 import FridgeSelector from '@/components/fridge/FridgeSelector'
+import { InviteCodeManager } from '@/components/dashboard/InviteCodeManager'
+import { JoinHouseholdInline } from '@/components/dashboard/JoinHouseholdForm'
 
 type Household = {
   id: string
@@ -22,15 +24,20 @@ type StorageUnit = {
 }
 
 type HouseholdMemberRecord = {
-  households: Household
+  households: Household;
+  user: {
+    email: string;
+    full_name?: string;
+  };
 }
+
 
 export default function HomePage() {
   const router = useRouter()
 
   const [households, setHouseholds] = useState<Household[]>([])
   const [activeHousehold, setActiveHousehold] = useState<Household | null>(null)
-
+  const [inviteRefreshKey, setInviteRefreshKey] = useState(0)
   const [storageUnits, setStorageUnits] = useState<StorageUnit[]>([])
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -101,6 +108,35 @@ export default function HomePage() {
     fetchInitial()
   }, [])
 
+  const refreshHouseholds = async (forceHouseholdId?: string) => {
+    const supabase = supabaseBrowser()
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session?.user) return
+
+    const { data: memberData, error: memberError } = await supabase
+      .from('household_members')
+      .select('households(id, name)')
+      .eq('user_id', session.user.id)
+
+    if (memberError || !memberData) return
+
+    const joinedHouseholds = (memberData as HouseholdMemberRecord[])?.map(m => m.households) ?? []
+    setHouseholds(joinedHouseholds)
+
+    const targetId = forceHouseholdId ?? joinedHouseholds[joinedHouseholds.length - 1]?.id
+    if (targetId) {
+      const found = joinedHouseholds.find(h => h.id === targetId)
+      if (found) {
+        setActiveHousehold({ id: found.id, name: found.name })
+      }
+      localStorage.setItem('active_household', targetId)
+      await fetchUnitsForHousehold(targetId)
+    }
+    setInviteRefreshKey(prev => prev + 1)
+  }
+
+
   const handleSelectUnit = (id: string) => {
     setSelectedUnitId(id)
     if (activeHousehold) {
@@ -119,25 +155,42 @@ export default function HomePage() {
 
   if (!activeHousehold) {
     return (
-      <div className="p-6 text-center">
-        <p className="mb-4">Nemáte žádnou domácnost.</p>
-        <button
-          onClick={() => router.push('/dashboard/new-household')}
-          className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
-        >
-          Vytvořit domácnost
-        </button>
-      </div>
+      <>
+        <JoinHouseholdInline
+          onJoined={async (joinedId) => {
+            await refreshHouseholds(joinedId)
+          }}
+        />
+        <div className="p-6 text-center">
+          <p className="mb-4">Nemáte žádnou domácnost.</p>
+          <button
+            onClick={() => router.push('/dashboard/new-household')}
+            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
+          >
+            Vytvořit domácnost
+          </button>
+        </div>
+      </>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div key={activeHousehold.id} className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex flex-col">
           <label htmlFor="household-select" className="text-sm font-medium">
             Vybraná domácnost
           </label>
+          <InviteCodeManager
+            key={activeHousehold.id}
+            householdId={activeHousehold.id}
+            refreshTrigger={inviteRefreshKey}
+          />
+          <JoinHouseholdInline
+            onJoined={async (joinedId) => {
+              await refreshHouseholds(joinedId)
+            }}
+          />
           <select
             id="household-select"
             value={activeHousehold.id}
