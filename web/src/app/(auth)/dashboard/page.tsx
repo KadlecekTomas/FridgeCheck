@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseBrowser } from '@/lib/auth/client'
 import EmptyState from '@/components/dashboard/EmptyState'
@@ -8,20 +8,9 @@ import StatsOverview from '@/components/dashboard/StatsOverview'
 import FridgeSelector from '@/components/fridge/FridgeSelector'
 import { InviteCodeManager } from '@/components/dashboard/InviteCodeManager'
 import { JoinHouseholdInline } from '@/components/dashboard/JoinHouseholdForm'
-
-type Household = {
-  id: string
-  name: string
-}
-
-type StorageUnit = {
-  id: string
-  name: string
-  created_at: string | null
-  owner_id: string | null
-  household_id: string | null
-  type: string
-}
+import type { Household } from '@/types/models';
+import { useHouseholds } from '@/lib/hooks/useHouseholds'
+import { useStorageUnits } from '@/lib/hooks/useStorageUnits'
 
 
 type HouseholdMemberRecord = {
@@ -33,38 +22,23 @@ type HouseholdMemberRecord = {
 }
 
 
-export default function HomePage() {
+export default function DashboardPage() {
   const router = useRouter()
-
-  const [households, setHouseholds] = useState<Household[]>([])
-  const [activeHousehold, setActiveHousehold] = useState<Household | null>(null)
-  const [inviteRefreshKey, setInviteRefreshKey] = useState(0)
-  const [storageUnits, setStorageUnits] = useState<StorageUnit[]>([])
-  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  const fetchUnitsForHousehold = async (householdId: string) => {
-    const supabase = supabaseBrowser()
-    const { data, error } = await supabase
-      .from('storage_units')
-      .select('*')
-      .eq('household_id', householdId)
-
-    if (error) {
-      console.error(error.message)
-      setStorageUnits([])
-      return
-    }
-
-    console.log('Nová data:', data)
-    console.log('Stará data:', storageUnits)
-    console.log('Stejná reference?', data === storageUnits)
-    setStorageUnits([...data])
-
-    const saved = localStorage.getItem(`active_fridge_${householdId}`)
-    const defaultId = saved || data?.[0]?.id || null
-    setSelectedUnitId(defaultId)
-  }
+  const {
+    households,
+    activeHousehold,
+    setActiveHousehold,
+    refreshHouseholds,
+    loading: householdsLoading,
+  } = useHouseholds()
+  const {
+    units: storageUnits,
+    selectedUnitId,
+    setSelectedUnitId,
+    loading: unitsLoading,
+    refreshUnits,
+  } = useStorageUnits(activeHousehold?.id || null)
+  const loading = householdsLoading || unitsLoading
 
   useEffect(() => {
     const fetchInitial = async () => {
@@ -83,15 +57,13 @@ export default function HomePage() {
 
       if (memberError) {
         console.error(memberError.message)
-        setLoading(false)
         return
       }
 
       const joinedHouseholds = (memberData as HouseholdMemberRecord[])?.map(m => m.households) ?? []
-      setHouseholds(joinedHouseholds)
+      // setHouseholds(joinedHouseholds) // useHouseholds handles this
 
       if (joinedHouseholds.length === 0) {
-        setLoading(false)
         return
       }
 
@@ -101,8 +73,7 @@ export default function HomePage() {
       setActiveHousehold(initial)
       localStorage.setItem('active_household', initial.id)
 
-      await fetchUnitsForHousehold(initial.id)
-      setLoading(false)
+      // await fetchUnitsForHousehold(initial.id) // useStorageUnits handles this
     }
 
     fetchInitial()
@@ -125,7 +96,7 @@ export default function HomePage() {
         },
         (payload) => {
           console.log('Realtime změna:', payload);
-          fetchUnitsForHousehold(activeHousehold.id);
+          refreshUnits();
         }
       )
       .subscribe();
@@ -134,35 +105,6 @@ export default function HomePage() {
       channel.unsubscribe();
     };
   }, [activeHousehold]);
-
-
-  const refreshHouseholds = async (forceHouseholdId?: string) => {
-    const supabase = supabaseBrowser()
-    const { data: { session } } = await supabase.auth.getSession()
-
-    if (!session?.user) return
-
-    const { data: memberData, error: memberError } = await supabase
-      .from('household_members')
-      .select('households(id, name)')
-      .eq('user_id', session.user.id)
-
-    if (memberError || !memberData) return
-
-    const joinedHouseholds = (memberData as HouseholdMemberRecord[])?.map(m => m.households) ?? []
-    setHouseholds(joinedHouseholds)
-
-    const targetId = forceHouseholdId ?? joinedHouseholds[joinedHouseholds.length - 1]?.id
-    if (targetId) {
-      const found = joinedHouseholds.find(h => h.id === targetId)
-      if (found) {
-        setActiveHousehold({ id: found.id, name: found.name })
-      }
-      localStorage.setItem('active_household', targetId)
-      await fetchUnitsForHousehold(targetId)
-    }
-    setInviteRefreshKey(prev => prev + 1)
-  }
 
 
   const handleSelectUnit = (id: string) => {
@@ -176,7 +118,7 @@ export default function HomePage() {
     const household = households.find(h => h.id === id) || null
     setActiveHousehold(household)
     localStorage.setItem('active_household', id)
-    await fetchUnitsForHousehold(id)
+    refreshUnits()
   }
 
   if (loading) return <p className="p-6">Načítání...</p>
@@ -205,16 +147,16 @@ export default function HomePage() {
   console.log('storageUnits:', storageUnits);
   console.log('selectedUnitId:', selectedUnitId);
   return (
-    <div key={activeHousehold.id} className="p-6 space-y-6">
+    <div key={activeHousehold?.id} className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex flex-col">
           <label htmlFor="household-select" className="text-sm font-medium">
             Vybraná domácnost
           </label>
           <InviteCodeManager
-            key={activeHousehold.id}
-            householdId={activeHousehold.id}
-            refreshTrigger={inviteRefreshKey}
+            key={activeHousehold?.id}
+            householdId={activeHousehold?.id}
+            refreshTrigger={0} // No longer needed, refreshUnits handles realtime
           />
           <JoinHouseholdInline
             onJoined={async (joinedId) => {
@@ -223,7 +165,7 @@ export default function HomePage() {
           />
           <select
             id="household-select"
-            value={activeHousehold.id}
+            value={activeHousehold?.id}
             onChange={(e) => handleSelectHousehold(e.target.value)}
             className="border border-gray-300 rounded-md px-4 py-2"
           >
@@ -239,8 +181,8 @@ export default function HomePage() {
       {storageUnits.length > 0 ? (
         <>
           <FridgeSelector
-            key={activeHousehold.id + inviteRefreshKey}
-            householdId={activeHousehold.id}
+            key={activeHousehold?.id + 0} // No longer needed, refreshUnits handles realtime
+            householdId={activeHousehold?.id}
             onSelect={handleSelectUnit}
             selectedId={selectedUnitId}
             units={storageUnits}
