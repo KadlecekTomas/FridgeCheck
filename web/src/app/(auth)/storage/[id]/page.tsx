@@ -7,7 +7,7 @@ import { FoodList } from '@/components/fridge/FoodList'
 import { FoodStatusStats } from '@/components/fridge/FoodStatusStats'
 
 export default async function StorageDetailPage({ params }: { params: { id: string } }) {
-  const cookieStore = cookies() // ✅ bez await
+  const cookieStore = cookies()
   const supabase = createServerComponentClient({ cookies: () => cookieStore })
 
   const storageUnitId = params.id
@@ -35,22 +35,22 @@ export default async function StorageDetailPage({ params }: { params: { id: stri
     notFound()
   }
 
-  // 3. Ověření, zda je uživatel vlastník nebo člen
+  // 3. Ověření, že user patří do household vlastnící toto úložiště
   const isOwner = unit.owner_id === user.id
 
-  const { data: membership } = await supabase
-    .from('storage_unit_members')
+  const { data: householdMembership } = await supabase
+    .from('household_members')
     .select('*')
-    .eq('storage_unit_id', storageUnitId)
+    .eq('household_id', unit.household_id)
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (!isOwner && !membership) {
-    console.error('Uživatel nemá přístup k tomuto úložišti')
+  if (!isOwner && !householdMembership) {
+    console.error('Uživatel nemá přístup – není owner ani člen domácnosti')
     notFound()
   }
 
-  // 4. Zavolání RPC funkce
+  // 4. Zavolání RPC funkce pro foods
   const { data: foods, error: foodError } = await supabase.rpc('get_my_foods', {
     fridge: storageUnitId,
     user_id: user.id,

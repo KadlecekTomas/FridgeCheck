@@ -21,7 +21,6 @@ type HouseholdMemberRecord = {
   };
 }
 
-
 export default function DashboardPage() {
   const router = useRouter()
   const {

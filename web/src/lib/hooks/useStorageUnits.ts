@@ -1,42 +1,54 @@
-import { useEffect, useState, useCallback } from 'react';
-import { supabaseBrowser } from '../auth/client';
-import type { StorageUnit } from '@/types/supabase';
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { supabaseBrowser } from '../auth/client'
+import type { StorageUnit } from '@/types/supabase'
 
 export function useStorageUnits(householdId: string | null) {
-  const [units, setUnits] = useState<StorageUnit[]>([]);
-  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [units, setUnits] = useState<StorageUnit[]>([])
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const householdIdRef = useRef(householdId)
+
+  useEffect(() => {
+    householdIdRef.current = householdId
+  }, [householdId])
 
   const fetchUnits = useCallback(async () => {
-    if (!householdId) {
-      setUnits([]);
-      setSelectedUnitId(null);
-      return;
+    const currentHouseholdId = householdIdRef.current
+    setLoading(true)
+    if (!currentHouseholdId) {
+      setLoading(false)
+      return
     }
-    setLoading(true);
-    const supabase = supabaseBrowser();
+    const supabase = supabaseBrowser()
     const { data, error } = await supabase
       .from('storage_units')
       .select('*')
-      .eq('household_id', householdId);
+      .eq('household_id', currentHouseholdId)
+    if (householdIdRef.current !== currentHouseholdId) return
     if (error) {
-      setUnits([]);
-      setSelectedUnitId(null);
-      setLoading(false);
-      return;
+      setUnits([])
+      setSelectedUnitId(null)
+    } else {
+      setUnits(data)
+      setSelectedUnitId(prev => {
+        if (!data || data.length === 0) return null
+        if (prev && data.some(u => u.id === prev)) return prev
+        return data[0].id
+      })
     }
-    setUnits(data);
-    const saved = localStorage.getItem(`active_fridge_${householdId}`);
-    const defaultId = saved || data?.[0]?.id || null;
-    setSelectedUnitId(defaultId);
-    setLoading(false);
-  }, [householdId]);
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
+    setLoading(true);
+    let isMounted = true;
     fetchUnits();
+
     if (!householdId) return;
+
     const supabase = supabaseBrowser();
-    const channel = supabase.channel('realtime-storage-units');
+    const channel = supabase.channel('realtime-storage-units-' + householdId);
+
     channel
       .on(
         'postgres_changes',
@@ -47,21 +59,23 @@ export function useStorageUnits(householdId: string | null) {
           filter: `household_id=eq.${householdId}`,
         },
         () => {
-          fetchUnits();
+          if (isMounted) fetchUnits();
         }
       )
       .subscribe();
+
     return () => {
-      channel.unsubscribe();
+      isMounted = false;
+      supabase.removeChannel(channel); // DŮLEŽITÉ: správně odhlásit!
     };
   }, [householdId, fetchUnits]);
 
   const selectUnit = (id: string) => {
-    setSelectedUnitId(id);
+    setSelectedUnitId(id)
     if (householdId) {
-      localStorage.setItem(`active_fridge_${householdId}`, id);
+      localStorage.setItem(`active_fridge_${householdId}`, id)
     }
-  };
+  }
 
   return {
     units,
@@ -69,5 +83,5 @@ export function useStorageUnits(householdId: string | null) {
     setSelectedUnitId: selectUnit,
     loading,
     refreshUnits: fetchUnits,
-  };
-} 
+  }
+}

@@ -26,6 +26,11 @@ export default function FridgeSelector({
   const [selected, setSelected] = useState<string>('')
 
   useEffect(() => {
+    if (!units || units.length === 0) {
+      setSelected('');
+      onSelect('');
+      return;
+    }
     const saved = localStorage.getItem(`active_fridge_${householdId}`)
     const defaultId = saved || selectedId || units?.[0]?.id || ''
     setSelected(defaultId)

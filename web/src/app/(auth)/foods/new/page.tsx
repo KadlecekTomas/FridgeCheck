@@ -35,10 +35,10 @@ export default function NewFoodPage() {
 
       setUserId(currentUser.id)
 
-      // Získání storage unit
+      // Získání storage jednotky
       const { data: unit, error: unitError } = await supabase
         .from('storage_units')
-        .select('*')
+        .select('id, household_id, owner_id')
         .eq('id', storageUnitId)
         .single()
 
@@ -47,23 +47,32 @@ export default function NewFoodPage() {
         return
       }
 
+      if (!unit.household_id) {
+        setError('Úložiště nemá přiřazenou domácnost.')
+        return
+      }
+
       setHouseholdId(unit.household_id)
 
       const isOwner = unit.owner_id === currentUser.id
 
+      // Nová správná logika: uživatel je buď owner, nebo člen household
       if (isOwner) {
         setFridgeAccessVerified(true)
         return
       }
 
-      const { data: membership } = await supabase
-        .from('storage_unit_members')
-        .select('*')
-        .eq('storage_unit_id', storageUnitId)
+      console.log(unit.household_id);
+
+      const { data: householdMembership } = await supabase
+        .from('household_members')
+        .select('user_id')
+        .eq('household_id', unit.household_id)
         .eq('user_id', currentUser.id)
         .maybeSingle()
 
-      if (membership) {
+
+      if (householdMembership) {
         setFridgeAccessVerified(true)
       } else {
         setError('Nemáš přístup k tomuto úložišti.')
