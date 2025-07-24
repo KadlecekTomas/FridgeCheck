@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -16,34 +16,56 @@ export default function DashboardPage() {
   const router = useRouter()
   const supabase = supabaseBrowser()
 
-  useEffect(() => {
-    const fetchStorageUnits = async () => {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession()
+  const fetchStorageUnits = async () => {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession()
 
-      if (!session?.user || sessionError) {
-        console.error('Nepřihlášený uživatel')
-        router.push('/login')
-        return
-      }
-
-      const { data, error } = await supabase
-        .from('storage_units')
-        .select('id, name')
-        .eq('owner_id', session.user.id)
-
-      if (error) {
-        console.error('Chyba při načítání úložišť:', error.message)
-      } else {
-        setStorageUnits(data)
-      }
-
-      setLoading(false)
+    if (!session?.user || sessionError) {
+      console.error('Nepřihlášený uživatel')
+      router.push('/login')
+      return
     }
 
+    const { data, error } = await supabase
+      .from('storage_units')
+      .select('id, name')
+      .eq('owner_id', session.user.id)
+
+    if (error) {
+      console.error('Chyba při načítání úložišť:', error.message)
+      setStorageUnits([]) // fallback
+    } else {
+      setStorageUnits(data || [])
+      console.log('✅ storageUnits aktualizovány:', data.length)
+    }
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
     fetchStorageUnits()
+
+    const channel = supabase
+      .channel('storage_units_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'storage_units',
+        },
+        (payload) => {
+          console.log('📦 storage_units změna:', payload)
+          fetchStorageUnits()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   if (loading) return <div className="p-6">Načítání...</div>

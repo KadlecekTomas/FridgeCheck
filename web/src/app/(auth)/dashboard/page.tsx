@@ -20,8 +20,9 @@ type StorageUnit = {
   created_at: string | null
   owner_id: string | null
   household_id: string | null
-  type: 'fridge' | 'freezer'
+  type: string
 }
+
 
 type HouseholdMemberRecord = {
   households: Household;
@@ -55,12 +56,11 @@ export default function HomePage() {
       return
     }
 
-    setStorageUnits(
-      (data || []).map((unit) => ({
-        ...unit,
-        type: unit.type === 'fridge' || unit.type === 'freezer' ? unit.type : 'fridge',
-      }))
-    )
+    console.log('Nová data:', data)
+    console.log('Stará data:', storageUnits)
+    console.log('Stejná reference?', data === storageUnits)
+    setStorageUnits([...data])
+
     const saved = localStorage.getItem(`active_fridge_${householdId}`)
     const defaultId = saved || data?.[0]?.id || null
     setSelectedUnitId(defaultId)
@@ -107,6 +107,34 @@ export default function HomePage() {
 
     fetchInitial()
   }, [])
+
+  useEffect(() => {
+    if (!activeHousehold) return;
+
+    const supabase = supabaseBrowser();
+    const channel = supabase.channel('realtime-storage-units');
+
+    channel
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'storage_units',
+          filter: `household_id=eq.${activeHousehold.id}`,
+        },
+        (payload) => {
+          console.log('Realtime změna:', payload);
+          fetchUnitsForHousehold(activeHousehold.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [activeHousehold]);
+
 
   const refreshHouseholds = async (forceHouseholdId?: string) => {
     const supabase = supabaseBrowser()
@@ -174,6 +202,8 @@ export default function HomePage() {
     )
   }
 
+  console.log('storageUnits:', storageUnits);
+  console.log('selectedUnitId:', selectedUnitId);
   return (
     <div key={activeHousehold.id} className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -209,9 +239,11 @@ export default function HomePage() {
       {storageUnits.length > 0 ? (
         <>
           <FridgeSelector
+            key={activeHousehold.id + inviteRefreshKey}
             householdId={activeHousehold.id}
             onSelect={handleSelectUnit}
             selectedId={selectedUnitId}
+            units={storageUnits}
           />
           {selectedUnitId ? (
             <StatsOverview fridgeId={selectedUnitId} />

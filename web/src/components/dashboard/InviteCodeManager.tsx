@@ -14,12 +14,14 @@ export function InviteCodeManager({
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [memberCount, setMemberCount] = useState<number | null>(null)
   const [memberLimit, setMemberLimit] = useState<number | null>(null)
+  const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const fetchData = async () => {
     setLoading(true)
     const supabase = supabaseBrowser()
 
+    // 🔹 Získání invite kódu a počtu členů
     const { data: householdView, error: viewError } = await supabase
       .from('household_with_member_count')
       .select('invite_code, member_count')
@@ -35,36 +37,50 @@ export function InviteCodeManager({
     setInviteCode(householdView.invite_code)
     setMemberCount(householdView.member_count)
 
-    const { data: { session } } = await supabase.auth.getSession()
-    const userId = session?.user?.id
+    // 🔹 Získání přihlášeného uživatele
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
+    const userId = session?.user?.id
     if (!userId) {
       toast.error('Nepřihlášený uživatel')
       setLoading(false)
       return
     }
 
+    // 🔹 Získání profilu podle UUID (ne podle `id`)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('is_premium')
+      .select('is_premium, role')
       .eq('id', userId)
       .single()
 
     if (profileError) {
       console.error('Chyba při načítání profilu:', profileError.message)
+      toast.error('Chyba při načítání profilu.')
       setLoading(false)
       return
     }
 
-    if (!profile) {
-      toast.error('Uživatelský profil nenalezen.')
-      setLoading(false)
-      return
-    }
-
-    const limit = profile?.is_premium ? 999 : 5
+    const limit = profile.is_premium ? 999 : 5
     setMemberLimit(limit)
+    // 🔹 Získání role uživatele v této domácnosti
+    const { data: memberRecord, error: memberError } = await supabase
+      .from('household_members')
+      .select('role')
+      .eq('household_id', householdId)
+      .eq('user_id', userId)
+      .single()
 
+    if (memberError || !memberRecord) {
+      console.error('Chyba při načítání role z household_members:', memberError?.message)
+      toast.error('Nepodařilo se načíst roli v domácnosti.')
+      setLoading(false)
+      return
+    }
+
+    setRole(memberRecord.role)
     setLoading(false)
   }
 
@@ -81,8 +97,6 @@ export function InviteCodeManager({
     } else {
       toast.success('Kód úspěšně obnoven.')
       await fetchData()
-      // volitelně:
-      // onForceRefresh?.() // ⬅️ callback z parentu, pokud chceš prop
     }
 
     setLoading(false)
@@ -131,13 +145,16 @@ export function InviteCodeManager({
       </div>
       <div className="flex items-center justify-between">
         <code className="font-mono text-lg">{inviteCode || 'Načítám...'}</code>
-        <button
-          onClick={regenerateCode}
-          className="ml-4 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
-          disabled={loading}
-        >
-          {loading ? 'Obnovuji...' : 'Obnovit'}
-        </button>
+        {/* ✅ Tlačítko zobrazené jen ownerovi */}
+        {role === 'owner' && (
+          <button
+            onClick={regenerateCode}
+            className="ml-4 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? 'Obnovuji...' : 'Obnovit'}
+          </button>
+        )}
       </div>
     </div>
   )
