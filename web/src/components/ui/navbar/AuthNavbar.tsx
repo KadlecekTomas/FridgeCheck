@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useUser } from '@/lib/hooks/useUser';
 import { signOut } from '@/lib/auth/client';
 import { useRouter } from 'next/navigation';
+import { Button } from '../button';
 
 export default function AuthNavbar() {
     const { user, loading } = useUser();
@@ -17,20 +18,20 @@ export default function AuthNavbar() {
     return (
         <nav className="bg-white shadow p-4 flex justify-between items-center mb-6">
             <div className="flex space-x-4">
-                <Link href="/dashboard" className="text-gray-800 hover:underline">dashboard</Link>
-                <Link href="/storage" className="text-gray-800 hover:underline">Fridge</Link>
+                <Link href="/dashboard" className="text-gray-800 hover:underline">Hlavní stránka</Link>
+                <Link href="/storage" className="text-gray-800 hover:underline">Prostory</Link>
             </div>
 
             <div className="flex items-center space-x-4">
                 {!loading && user && (
                     <>
-                        <span className="text-sm text-gray-600 hidden sm:inline">{user.email}</span>
-                        <button
+                        <Link href="/profile" className="text-gray-800 hover:underline">{user.email}</Link>
+                        <Button
                             onClick={handleLogout}
                             className="text-sm bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
                         >
                             Odhlásit se
-                        </button>
+                        </Button>
                     </>
                 )}
             </div>
