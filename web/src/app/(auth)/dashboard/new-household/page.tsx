@@ -45,7 +45,11 @@ export default function NewHouseholdPage() {
       setLoading(false)
       return
     }
-
+    
+    await supabase.from('profiles').upsert({
+      id: userId,
+      email: session.user.email
+    });
     // 2. Přidej ownera jako člena
     const { error: memberError } = await supabase
       .from('household_members')
