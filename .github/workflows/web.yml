@@ -13,19 +13,17 @@ jobs:
       run:
         working-directory: web
 
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/setup-node@v3
         with:
           node-version: 18
 
       - run: npm ci
-
-      - name: Generate Supabase types
-        run: npx supabase gen types typescript --project-id vzzrrfllzmxfedhphtcv > src/types/supabase.ts
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
       - run: npm run lint
       - run: npm run build
+ 
