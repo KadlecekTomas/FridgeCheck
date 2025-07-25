@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 export default function LandingPage() {
     return (
@@ -46,9 +47,11 @@ export default function LandingPage() {
                     transition={{ delay: 0.4, duration: 0.8 }}
                     className="mt-16 w-full max-w-4xl"
                 >
-                    <img
+                    <Image
                         src="/images/fridge-illustration.svg"
                         alt="Ilustrace lednice"
+                        width={800} // nebo jakýkoli přibližný rozměr
+                        height={600}
                         className="w-full h-auto"
                     />
                 </motion.div>

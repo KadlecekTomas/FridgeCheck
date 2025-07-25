@@ -15,3 +15,11 @@ export type HouseholdWithMembers = {
     user_id: string
   }[]
 }
+
+export type MemberWithEmail = {
+  user_id: string;
+  user: {
+    email: string;
+  };
+};
+ 

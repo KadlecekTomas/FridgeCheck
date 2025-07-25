@@ -1,68 +1,120 @@
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { supabaseBrowser } from '@/lib/auth/client'
+import { useEffect, useState, useCallback } from 'react'
 
 type HouseholdMemberWithUser = {
     user_id: string
     household_id: string
-    role: string | null
+    role: 'owner' | 'member' | null
     joined_at: string | null
     user: {
         email: string
     }
 }
 
+type HouseholdMemberRowFromView = {
+    user_id: string | null
+    household_id: string | null
+    role: string | null
+    joined_at: string | null
+    email: string | null
+}
 
 export default function MembersPage() {
     const params = useParams()!
     const id = Array.isArray(params.id) ? params.id[0] : params.id
-    const router = useRouter()
     const [members, setMembers] = useState<HouseholdMemberWithUser[]>([])
     const [email, setEmail] = useState('')
 
-    useEffect(() => {
-        const fetchMembers = async () => {
-            const { data, error } = await supabaseBrowser()
-                .from('household_members')
-                .select('user_id, household_id, role, joined_at, user:profiles!user_id(id)')
-                .eq('household_id', id)
+    const fetchMembers = useCallback(async () => {
+        const { data, error } = await supabaseBrowser()
+            .from('household_members_with_email')
+            .select('*')
+            .eq('household_id', id)
 
-            if (!error && data) setMembers(data)
+        if (error) {
+            console.error('Chyba při načítání členů:', error)
+            return
         }
 
-        fetchMembers()
+        if (data) {
+            const transformed: HouseholdMemberWithUser[] = (data as HouseholdMemberRowFromView[]).map((item) => ({
+                user_id: item.user_id ?? '',
+                household_id: item.household_id ?? '',
+                role: item.role === 'owner' || item.role === 'member' ? item.role : null,
+                joined_at: item.joined_at ?? null,
+                user: {
+                    email: item.email ?? '',
+                },
+            }))
+            setMembers(transformed)
+        }
     }, [id])
 
+
+    useEffect(() => {
+        fetchMembers()
+    }, [fetchMembers])
+
     const handleAdd = async () => {
-        const { data: userData, error } = await supabaseBrowser()
+        if (!email.trim()) return alert('Zadej email')
+
+        // 🔁 Oprava: hledáme v `profiles`, ale nejprve potřebujeme rozšířit `profiles` o sloupec `email`
+        const { data: userData, error: userError } = await supabaseBrowser()
             .from('profiles')
             .select('id')
             .eq('email', email)
             .single()
 
-        if (error || !userData) {
+        if (userError || !userData) {
             alert('Uživatel nenalezen')
             return
         }
 
-        await supabaseBrowser().from('household_members').insert({
-            household_id: id,
-            user_id: userData.id,
-        })
+        const alreadyExists = members.some((m) => m.user_id === userData.id)
+        if (alreadyExists) {
+            alert('Uživatel je již členem')
+            return
+        }
+
+        const { error: insertError } = await supabaseBrowser()
+            .from('household_members')
+            .insert({
+                household_id: id,
+                user_id: userData.id,
+                role: 'member',
+            })
+
+        if (insertError) {
+            alert('Chyba při přidání člena')
+            return
+        }
 
         setEmail('')
-        router.refresh()
+        fetchMembers()
     }
 
+
     const handleRemove = async (userId: string) => {
-        await supabaseBrowser()
+        const member = members.find((m) => m.user_id === userId)
+        if (member?.role === 'owner') {
+            alert('Nelze odebrat vlastníka domácnosti')
+            return
+        }
+
+        const { error } = await supabaseBrowser()
             .from('household_members')
             .delete()
             .match({ household_id: id, user_id: userId })
 
-        router.refresh()
+        if (error) {
+            alert('Chyba při odstraňování člena')
+            return
+        }
+
+        fetchMembers()
     }
 
     return (
@@ -74,24 +126,26 @@ export default function MembersPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Email nového člena"
-                    className="border px-3 py-2 rounded mr-2"
+                    className="border px-3 py-2 rounded mr-2 w-full max-w-xs"
                 />
-                <button onClick={handleAdd} className="bg-green-500 text-white px-4 py-2 rounded">
+                <button onClick={handleAdd} className="bg-green-500 text-white px-4 py-2 rounded mt-2">
                     Přidat
                 </button>
             </div>
 
-            {members.map((m) => (
-                <div key={m.user_id} className="flex justify-between items-center mb-2">
-                    <span>{m.user.email}</span>
-                    <button
-                        className="text-red-600 hover:underline"
-                        onClick={() => handleRemove(m.user_id)}
-                    >
-                        Odebrat
-                    </button>
-                </div>
-            ))}
+            <div className="space-y-2">
+                {members.map((m) => (
+                    <div key={m.user_id} className="flex justify-between items-center">
+                        <span>{m.user.email}</span>
+                        <button
+                            className="text-red-600 hover:underline text-sm"
+                            onClick={() => handleRemove(m.user_id)}
+                        >
+                            Odebrat
+                        </button>
+                    </div>
+                ))}
+            </div>
         </div>
     )
 }

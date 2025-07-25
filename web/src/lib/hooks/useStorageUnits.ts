@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabaseBrowser } from '../auth/client'
-import type { StorageUnit } from '@/types/supabase'
+import type { Database } from '@/types/supabase'
+
+type StorageUnit = Database['public']['Tables']['storage_units']['Row']
 
 export function useStorageUnits(householdId: string | null) {
   const [units, setUnits] = useState<StorageUnit[]>([])

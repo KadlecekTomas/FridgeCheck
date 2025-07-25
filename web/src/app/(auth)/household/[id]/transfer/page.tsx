@@ -1,36 +1,55 @@
-'use client'
+'use client';
 
-import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { supabaseBrowser } from '@/lib/auth/client'
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { supabaseBrowser } from '@/lib/auth/client';
+
+type MemberWithEmail = {
+    user_id: string;
+    user: {
+        email: string;
+    };
+};
 
 export default function TransferOwnershipPage() {
-    const params = useParams()!
-    const id = Array.isArray(params.id) ? params.id[0] : params.id
-    const router = useRouter()
-    const [members, setMembers] = useState<any[]>([])
+    const params = useParams();
+    const id = Array.isArray(params!.id) ? params!.id[0] : params!.id;
+    const router = useRouter();
+    const [members, setMembers] = useState<MemberWithEmail[]>([]);
 
     useEffect(() => {
         const fetch = async () => {
-            const { data } = await supabaseBrowser()
-                .from('household_members')
-                .select('user_id, user:users(email)')
-                .eq('household_id', id)
+            const { data, error } = await supabaseBrowser()
+                .from('household_members_with_email')
+                .select('user_id, email')
+                .eq('household_id', id);
 
-            setMembers(data || [])
-        }
+            if (error) {
+                console.error('Chyba při načítání členů:', error.message);
+                return;
+            }
 
-        fetch()
-    }, [id])
+            setMembers(
+                (data ?? []).map((item) => ({
+                    user_id: item.user_id ?? '',
+                    user: {
+                        email: item.email ?? '',
+                    },
+                }))
+            );
+        };
+
+        fetch();
+    }, [id]);
 
     const handleTransfer = async (newOwnerId: string) => {
         await supabaseBrowser()
             .from('households')
             .update({ owner_id: newOwnerId })
-            .eq('id', id)
+            .eq('id', id);
 
-        router.push('/profile')
-    }
+        router.push('/profile');
+    };
 
     return (
         <div className="max-w-2xl mx-auto py-8">
@@ -51,5 +70,5 @@ export default function TransferOwnershipPage() {
                 </div>
             ))}
         </div>
-    )
+    );
 }

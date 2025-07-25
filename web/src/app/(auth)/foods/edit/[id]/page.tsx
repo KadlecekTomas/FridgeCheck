@@ -49,7 +49,7 @@ export default function EditFoodPage() {
         }
 
         if (foodId) fetchFood()
-    }, [foodId])
+    }, [foodId, router])
 
     const validationSchema = Yup.object({
         name: Yup.string().required('Název je povinný'),

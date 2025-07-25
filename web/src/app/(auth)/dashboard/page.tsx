@@ -76,7 +76,7 @@ export default function DashboardPage() {
     }
 
     fetchInitial()
-  }, [])
+  }, [router, setActiveHousehold])
 
   useEffect(() => {
     if (!activeHousehold) return;
@@ -103,7 +103,7 @@ export default function DashboardPage() {
     return () => {
       channel.unsubscribe();
     };
-  }, [activeHousehold]);
+  }, [activeHousehold, refreshUnits]);
 
 
   const handleSelectUnit = (id: string) => {

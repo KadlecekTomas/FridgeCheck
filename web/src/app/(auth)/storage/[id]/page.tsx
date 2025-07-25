@@ -3,11 +3,17 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 
-export default async function StorageDetailPage({ params }: { params: { id: string } }) {
+export default async function StorageDetailPage({
+  params,
+}: {
+  params: { id: string }
+}) {
   const cookieStore = cookies()
   const supabase = createServerComponentClient({ cookies: () => cookieStore })
 
-  const storageUnitId = params.id
+  const storageUnitId = params?.id
+  if (!storageUnitId) notFound()
+
 
   const {
     data: { user },

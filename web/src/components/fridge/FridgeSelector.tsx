@@ -35,7 +35,7 @@ export default function FridgeSelector({
     const defaultId = saved || selectedId || units?.[0]?.id || ''
     setSelected(defaultId)
     onSelect(defaultId)
-  }, [householdId, selectedId, units])
+  }, [householdId, selectedId, units, onSelect])
 
   const handleSelect = (id: string) => {
     setSelected(id)

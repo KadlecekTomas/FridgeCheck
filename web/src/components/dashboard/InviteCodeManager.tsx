@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabaseBrowser } from '@/lib/auth/client'
 import { toast } from 'sonner'
 
@@ -17,11 +17,10 @@ export function InviteCodeManager({
   const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     const supabase = supabaseBrowser()
 
-    // 🔹 Získání invite kódu a počtu členů
     const { data: householdView, error: viewError } = await supabase
       .from('household_with_member_count')
       .select('invite_code, member_count')
@@ -37,19 +36,15 @@ export function InviteCodeManager({
     setInviteCode(householdView.invite_code)
     setMemberCount(householdView.member_count)
 
-    // 🔹 Získání přihlášeného uživatele
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
+    const { data: { session } } = await supabase.auth.getSession()
     const userId = session?.user?.id
+
     if (!userId) {
       toast.error('Nepřihlášený uživatel')
       setLoading(false)
       return
     }
 
-    // 🔹 Získání profilu podle UUID (ne podle `id`)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('is_premium, role')
@@ -65,7 +60,7 @@ export function InviteCodeManager({
 
     const limit = profile.is_premium ? 999 : 5
     setMemberLimit(limit)
-    // 🔹 Získání role uživatele v této domácnosti
+
     const { data: memberRecord, error: memberError } = await supabase
       .from('household_members')
       .select('role')
@@ -82,7 +77,8 @@ export function InviteCodeManager({
 
     setRole(memberRecord.role)
     setLoading(false)
-  }
+  }, [householdId])
+
 
   const regenerateCode = async () => {
     setLoading(true)
@@ -118,20 +114,14 @@ export function InviteCodeManager({
           filter: `household_id=eq.${householdId}`,
         },
         async (payload) => {
-          console.log('📡 Změna v household_members:', payload)
+          console.error('📡 Změna v household_members:', payload)
           await fetchData()
         }
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`✅ Realtime připojeno na household_members pro ${householdId}`)
-        }
-      })
-
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [householdId, refreshTrigger])
+  }, [householdId, refreshTrigger, fetchData])
 
   return (
     <div className="p-4 border rounded-md bg-gray-50 shadow-sm mb-4">

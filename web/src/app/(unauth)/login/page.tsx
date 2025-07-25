@@ -26,7 +26,7 @@ export default function LoginPage() {
       }
     }
     checkSession()
-  }, [])
+  }, [router])
 
   if (checkingSession || alreadyLoggedIn) {
     return (

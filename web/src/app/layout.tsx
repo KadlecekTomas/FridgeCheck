@@ -1,19 +1,18 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Inter, Roboto_Mono } from 'next/font/google'
 import '@/styles/globals.css'
 import LayoutClientWrapper from './LayoutClientWrapper'
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const inter = Inter({
+  variable: '--font-sans',
   subsets: ['latin'],
 })
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const mono = Roboto_Mono({
+  variable: '--font-mono',
   subsets: ['latin'],
 })
 
-export const metadata: Metadata = {
+export const metadata: { title: string; description?: string } = {
   title: 'Fridge check',
   description: 'Fridge check',
 }
@@ -21,7 +20,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="cs">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${inter.variable} ${mono.variable} antialiased`}>
         <LayoutClientWrapper>
           {children}
         </LayoutClientWrapper>
