@@ -110,8 +110,15 @@ export default function NewFoodPage() {
 
     try {
       const devices = await Html5Qrcode.getCameras();
+
       if (!devices.length) throw new Error('Nebyla nalezena žádná kamera.');
-      const cameraId = devices[0].id;
+
+      // 🟩 Najdi zadní kameru podle názvu
+      const backCamera = devices.find((d) =>
+        d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('zadní') || d.label.toLowerCase().includes('rear')
+      );
+
+      const cameraId = backCamera?.id || devices[0].id; // fallback pokud nenajde
 
       html5QrCodeRef.current = new Html5Qrcode('video-preview');
 
@@ -121,7 +128,7 @@ export default function NewFoodPage() {
         formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13]
       };
 
-      html5QrCodeRef.current.start(
+      await html5QrCodeRef.current.start(
         cameraId,
         config,
         (decodedText) => {
@@ -141,6 +148,7 @@ export default function NewFoodPage() {
       setScanning(false);
     }
   };
+
 
   const initialValues = useMemo(() => ({
     name: product?.product_name || '',
