@@ -1,11 +1,11 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useEffect, useMemo, useRef } from 'react'
-import { supabaseBrowser } from '@/lib/auth/client'
-import { Formik, Form, Field, ErrorMessage } from 'formik'
-import * as Yup from 'yup'
-import { Html5QrcodeScanner } from 'html5-qrcode'
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { supabaseBrowser } from '@/lib/auth/client';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import Image from 'next/image';
 import { toast } from 'sonner';
 
@@ -31,7 +31,7 @@ export default function NewFoodPage() {
   const [scanning, setScanning] = useState(false);
   const [product, setProduct] = useState<OpenFoodProduct | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
     const verifyAccess = async () => {
@@ -48,9 +48,9 @@ export default function NewFoodPage() {
         .select('id, household_id, owner_id')
         .eq('id', storageUnitId)
         .single();
+
       if (unitError || !unit) return setError('Úložiště nenalezeno.');
       if (!unit.household_id) return setError('Úložiště nemá přiřazenou domácnost.');
-
       setHouseholdId(unit.household_id);
 
       if (unit.owner_id === currentUser.id) return setFridgeAccessVerified(true);
@@ -67,6 +67,14 @@ export default function NewFoodPage() {
     };
 
     verifyAccess();
+
+    return () => {
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current.stop().then(() => {
+          html5QrCodeRef.current?.clear();
+        });
+      }
+    };
   }, [storageUnitId]);
 
   const fetchProduct = async (eanCode: string) => {
@@ -96,28 +104,41 @@ export default function NewFoodPage() {
     if (ean) fetchProduct(ean);
   };
 
-  const handleScan = () => {
+  const handleScan = async () => {
     setScanning(true);
     setError(null);
 
-    if (!scannerRef.current) {
-      scannerRef.current = new Html5QrcodeScanner(
-        'video-preview',
-        { fps: 10, qrbox: 250 },
-        false
-      );
+    try {
+      const devices = await Html5Qrcode.getCameras();
+      if (!devices.length) throw new Error('Nebyla nalezena žádná kamera.');
+      const cameraId = devices[0].id;
 
-      scannerRef.current.render(
+      html5QrCodeRef.current = new Html5Qrcode('video-preview');
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13]
+      };
+
+      html5QrCodeRef.current.start(
+        cameraId,
+        config,
         (decodedText) => {
-          scannerRef.current?.clear();
-          setScanning(false);
-          setEan(decodedText);
-          fetchProduct(decodedText);
+          html5QrCodeRef.current?.stop().then(() => {
+            html5QrCodeRef.current?.clear();
+            setScanning(false);
+            setEan(decodedText);
+            fetchProduct(decodedText);
+          });
         },
-        (err) => {
-          console.warn('Scan error', err);
+        (errorMessage) => {
+          console.warn('Scan error:', errorMessage);
         }
       );
+    } catch {
+      toast.error('Nepodařilo se spustit skener.');
+      setScanning(false);
     }
   };
 
@@ -209,7 +230,7 @@ export default function NewFoodPage() {
               {scanning ? 'Skenuji…' : '📷'}
             </button>
           </div>
-          <div id="video-preview" className="mt-2" />
+          <div id="video-preview" className="w-full h-[250px] rounded overflow-hidden bg-black mt-2" />
           {apiLoading && <p className="text-sm text-gray-500 mt-2">Načítám produkt…</p>}
         </div>
 
