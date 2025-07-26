@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { signUpWithEmail, signInWithGoogle, supabaseBrowser } from '@/lib/auth/client';
 import { motion } from 'framer-motion';
+import { ClipLoader } from 'react-spinners';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -34,7 +35,9 @@ export default function RegisterPage() {
   if (checkingSession || alreadyLoggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-green-50 px-6">
-        <div className="text-center text-gray-600 text-lg">Jsi již přihlášený 👋 Přesměrovávám...</div>
+        <div className="flex flex-col items-center space-y-4">
+          <ClipLoader color="#22c55e" size={48} speedMultiplier={1.2} />
+        </div>
       </div>
     );
   }
