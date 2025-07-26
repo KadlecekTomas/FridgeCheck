@@ -8,6 +8,7 @@ import * as Yup from 'yup';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import Image from 'next/image';
 import { toast } from 'sonner';
+import EANFileScanner from '@/components/ui/ean/EANFileScanner';
 
 interface OpenFoodProduct {
   product_name?: string;
@@ -245,6 +246,13 @@ export default function NewFoodPage() {
           </div>
           <div id="video-preview" className="w-full h-[250px] rounded overflow-hidden bg-black mt-2" />
           {apiLoading && <p className="text-sm text-gray-500 mt-2">Načítám produkt…</p>}
+          {/* Přidáme čtečku fotek */}
+          <EANFileScanner
+            onResult={(code) => {
+              setEan(code);
+              fetchProduct(code);
+            }}
+          />
         </div>
 
         {product && (
