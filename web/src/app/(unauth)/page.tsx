@@ -7,9 +7,32 @@ import ReactFullpage from '@fullpage/react-fullpage';
 import 'fullpage.js/dist/fullpage.css';
 import './global.css';
 import { useEffect, useState } from 'react';
+import MobileMenu from '@/components/ui/menu/MobileMenu';
 
 export default function LandingPage() {
     const [isSmallScreen, setIsSmallScreen] = useState(false);
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+    useEffect(() => {
+        const checkSize = () => {
+            if (typeof window !== 'undefined') {
+                setIsSmallScreen(window.innerWidth < 1024);
+            }
+        };
+
+        checkSize();
+        window.addEventListener('resize', checkSize);
+
+        return () => window.removeEventListener('resize', checkSize);
+    }, [mobileNavOpen]);
+
+    useEffect(() => {
+        if (mobileNavOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+    }, [mobileNavOpen]);
 
     useEffect(() => {
         const checkSize = () => {
@@ -63,14 +86,22 @@ export default function LandingPage() {
                     <a href="#reviews" className="hover:text-green-400 transition">Recenze</a>
                     <a href="#cta" className="hover:text-green-400 transition">Začít</a>
                 </nav>
+                <div className="md:hidden flex items-center gap-3">
+                    <button onClick={() => setMobileNavOpen(true)} className="text-white focus:outline-none">
+                        <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
                 <Link
                     href="/login"
-                    className="bg-green-500 hover:bg-green-600 px-5 py-2 rounded-full font-semibold shadow-md transition hover:scale-105 text-white"
+                    className="hidden md:inline-block bg-green-500 hover:bg-green-600 px-5 py-2 rounded-full font-semibold shadow-md transition hover:scale-105 text-white"
                 >
                     Vyzkoušet zdarma
                 </Link>
             </header>
 
+            <MobileMenu open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
             {isSmallScreen ? (
                 <div className="text-white bg-black font-sans">
                     {/* HERO sekce */}
