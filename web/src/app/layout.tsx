@@ -13,8 +13,8 @@ const mono = Roboto_Mono({
 })
 
 export const metadata: { title: string; description?: string } = {
-  title: 'Fridge check',
-  description: 'Fridge check',
+  title: 'Hlídač jídla',
+  description: 'Hlídač jídla',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
