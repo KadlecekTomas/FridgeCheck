@@ -1,46 +1,49 @@
-'use client'
+'use client';
 
-import { useRouter } from 'next/navigation'
-import { Formik, Form, Field, ErrorMessage } from 'formik'
-import * as Yup from 'yup'
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import Link from 'next/link'
-import { signUpWithEmail, signInWithGoogle, supabaseBrowser } from '@/lib/auth/client'
+import { useRouter } from 'next/navigation';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import Link from 'next/link';
+import { signUpWithEmail, signInWithGoogle, supabaseBrowser } from '@/lib/auth/client';
+import { motion } from 'framer-motion';
 
 export default function RegisterPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [checkingSession, setCheckingSession] = useState(true)
-  const [alreadyLoggedIn, setAlreadyLoggedIn] = useState(false)
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [alreadyLoggedIn, setAlreadyLoggedIn] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabaseBrowser().auth.getSession()
+      const { data: { session } } = await supabaseBrowser().auth.getSession();
       if (session) {
-        setAlreadyLoggedIn(true)
-        toast.info('Jsi již přihlášený 👋')
-        setTimeout(() => router.replace('/dashboard'), 1500)
+        setAlreadyLoggedIn(true);
+        toast.info('Jsi již přihlášený 👋');
+        setTimeout(() => router.replace('/dashboard'), 1500);
       } else {
-        setCheckingSession(false)
+        setCheckingSession(false);
       }
-    }
-    checkSession()
-  }, [router])
+    };
+    checkSession();
+  }, [router]);
 
   if (checkingSession || alreadyLoggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f7fb] px-6">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-green-50 px-6">
         <div className="text-center text-gray-600 text-lg">Jsi již přihlášený 👋 Přesměrovávám...</div>
       </div>
-    )
+    );
   }
 
   const initialValues = {
     email: '',
     password: '',
     confirmPassword: '',
-  }
+  };
 
   const validationSchema = Yup.object({
     email: Yup.string().email('Neplatný email').required('Email je povinný'),
@@ -48,38 +51,43 @@ export default function RegisterPage() {
     confirmPassword: Yup.string()
       .oneOf([Yup.ref('password')], 'Hesla se musí shodovat')
       .required('Potvrzení hesla je povinné'),
-  })
+  });
 
   const handleSubmit = async (
     values: typeof initialValues,
     { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
   ) => {
-    setLoading(true)
+    setLoading(true);
     try {
-      await signUpWithEmail(values.email, values.password)
-      toast.success('Registrace proběhla úspěšně 🎉')
-      router.replace('/dashboard')
+      await signUpWithEmail(values.email, values.password);
+      toast.success('Registrace proběhla úspěšně 🎉');
+      router.replace('/dashboard');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Neznámá chyba při registraci')
+      toast.error(err instanceof Error ? err.message : 'Neznámá chyba při registraci');
     } finally {
-      setLoading(false)
-      setSubmitting(false)
+      setLoading(false);
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleGoogleRegister = async () => {
     try {
-      await signInWithGoogle()
+      await signInWithGoogle();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Chyba při registraci přes Google')
+      toast.error(err instanceof Error ? err.message : 'Chyba při registraci přes Google');
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f5f7fb] px-6">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-lg p-10 space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-green-50 px-6">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md bg-white rounded-3xl shadow-xl p-10 space-y-6 border border-green-100"
+      >
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Vytvoř si účet 🧊</h1>
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Vytvoř si účet 🧊</h1>
           <p className="text-gray-500 text-base">Zaregistruj se a měj lednici pod kontrolou</p>
         </div>
 
@@ -87,7 +95,7 @@ export default function RegisterPage() {
           initialValues={initialValues}
           validationSchema={validationSchema}
           onSubmit={handleSubmit}
-          validateOnBlur={true}
+          validateOnBlur
           validateOnChange={false}
         >
           {({ isSubmitting }) => (
@@ -99,39 +107,57 @@ export default function RegisterPage() {
                   type="email"
                   name="email"
                   placeholder="např. uzivatel@email.com"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
                 />
                 <ErrorMessage name="email" component="div" className="text-sm text-red-500 mt-1" />
               </div>
 
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Heslo</label>
-                <Field
-                  id="password"
-                  type="password"
-                  name="password"
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm"
-                />
+                <div className="relative">
+                  <Field
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
                 <ErrorMessage name="password" component="div" className="text-sm text-red-500 mt-1" />
               </div>
 
               <div>
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Potvrzení hesla</label>
-                <Field
-                  id="confirmPassword"
-                  type="password"
-                  name="confirmPassword"
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm"
-                />
+                <div className="relative">
+                  <Field
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    name="confirmPassword"
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"
+                  >
+                    {showConfirmPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
                 <ErrorMessage name="confirmPassword" component="div" className="text-sm text-red-500 mt-1" />
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting || loading}
-                className="w-full bg-green-600 text-white py-3 rounded-xl text-sm font-medium hover:bg-green-700 transition"
+                className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-transform hover:scale-[1.02] active:scale-95"
               >
                 {loading ? 'Registruji...' : 'Zaregistrovat se'}
               </button>
@@ -139,22 +165,27 @@ export default function RegisterPage() {
           )}
         </Formik>
 
-        <div className="relative">
+        <div className="relative py-4">
           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-          <div className="relative flex justify-center text-sm"><span className="bg-white px-2 text-gray-400">nebo</span></div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-white px-3 text-gray-400">nebo</span>
+          </div>
         </div>
 
         <button
           onClick={handleGoogleRegister}
-          className="w-full py-3 border border-gray-300 bg-white rounded-xl flex justify-center items-center text-sm hover:bg-gray-50 transition"
+          className="w-full py-3 border border-gray-300 bg-white rounded-xl flex justify-center items-center text-sm font-medium hover:bg-gray-50 transition-transform hover:scale-[1.01] active:scale-95"
         >
           Registrovat přes Google
         </button>
 
         <div className="text-center text-sm text-gray-500 pt-4">
-          Už máš účet? <Link href="/login" className="text-green-600 hover:underline font-medium">Přihlas se</Link>
+          Už máš účet?{' '}
+          <Link href="/login" className="text-green-600 hover:underline font-semibold">
+            Přihlas se
+          </Link>
         </div>
-      </div>
+      </motion.div>
     </div>
-  )
+  );
 }
