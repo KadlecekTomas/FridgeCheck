@@ -1,11 +1,11 @@
-'use client'
+'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabaseBrowser } from '@/lib/auth/client'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
-import { BrowserMultiFormatReader } from '@zxing/browser';
+import { Html5QrcodeScanner } from 'html5-qrcode'
 import Image from 'next/image';
 import { toast } from 'sonner';
 
@@ -31,6 +31,7 @@ export default function NewFoodPage() {
   const [scanning, setScanning] = useState(false);
   const [product, setProduct] = useState<OpenFoodProduct | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
     const verifyAccess = async () => {
@@ -95,25 +96,28 @@ export default function NewFoodPage() {
     if (ean) fetchProduct(ean);
   };
 
-  const handleScan = async () => {
+  const handleScan = () => {
     setScanning(true);
     setError(null);
-    try {
-      const codeReader = new BrowserMultiFormatReader();
-      const videoDevices = await BrowserMultiFormatReader.listVideoInputDevices();
-      const selectedDeviceId = videoDevices[0]?.deviceId;
-      if (!selectedDeviceId) throw new Error('Nebyla nalezena žádná kamera.');
 
-      const result = await codeReader.decodeOnceFromVideoDevice(selectedDeviceId, 'video-preview');
-      setEan(result.getText());
-      fetchProduct(result.getText());
-      (codeReader as unknown as { reset?: () => void }).reset?.();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Nepodařilo se načíst kód.';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setScanning(false);
+    if (!scannerRef.current) {
+      scannerRef.current = new Html5QrcodeScanner(
+        'video-preview',
+        { fps: 10, qrbox: 250 },
+        false
+      );
+
+      scannerRef.current.render(
+        (decodedText) => {
+          scannerRef.current?.clear();
+          setScanning(false);
+          setEan(decodedText);
+          fetchProduct(decodedText);
+        },
+        (err) => {
+          console.warn('Scan error', err);
+        }
+      );
     }
   };
 
@@ -152,7 +156,6 @@ export default function NewFoodPage() {
         household_id: householdId,
         added_by_user: userId,
       });
-
 
       if (error) {
         toast.error('Chyba při ukládání: ' + error.message);
@@ -206,7 +209,7 @@ export default function NewFoodPage() {
               {scanning ? 'Skenuji…' : '📷'}
             </button>
           </div>
-          {scanning && <video id="video-preview" width={250} height={180} autoPlay muted playsInline className="rounded border my-2" />}
+          <div id="video-preview" className="mt-2" />
           {apiLoading && <p className="text-sm text-gray-500 mt-2">Načítám produkt…</p>}
         </div>
 
@@ -219,8 +222,7 @@ export default function NewFoodPage() {
                 width={64}
                 height={64}
                 className="h-16 w-16 object-cover rounded"
-              />
-              }
+              />}
               <div>
                 <p className="font-semibold">{product.product_name}</p>
                 <p className="text-xs text-gray-500">{product.brands}</p>
@@ -250,9 +252,7 @@ export default function NewFoodPage() {
                 <label className="block font-medium mb-1">Kategorie</label>
                 <Field as="select" name="category" className="w-full border p-2 rounded">
                   {product?.categories_tags?.slice(0, 3).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
+                    <option key={cat} value={cat}>{cat}</option>
                   ))}
                   <option value="">Jiná / nezadáno</option>
                 </Field>
