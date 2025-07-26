@@ -212,6 +212,11 @@ export default function NewFoodPage() {
         <h1 className="text-2xl font-bold mb-4 text-center">Přidat potravinu</h1>
 
         {error && <div className="mb-4 text-sm text-red-600 bg-red-100 p-2 rounded">{error}</div>}
+        {ean && (
+          <div className="text-sm text-gray-700 mb-1">
+            📦 <strong>Načtený EAN:</strong> <span className="font-mono">{ean}</span>
+          </div>
+        )}
 
         <div className="mb-4">
           <label className="block font-medium mb-1">Zadej nebo naskenuj EAN kód</label>
