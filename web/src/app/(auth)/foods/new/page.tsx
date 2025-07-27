@@ -8,7 +8,7 @@ import * as Yup from 'yup';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import EANCameraScanner from '@/components/ui/ean/EANFileScanner';
+import OCRNumberScanner from '@/components/ui/ean/OCRNumberScanner';
 
 interface OpenFoodProduct {
   product_name?: string;
@@ -34,7 +34,7 @@ export default function NewFoodPage() {
   const [apiLoading, setApiLoading] = useState(false);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const [showLiveScanner, setShowLiveScanner] = useState(false);
- 
+
   useEffect(() => {
     const verifyAccess = async () => {
       if (!storageUnitId) return setError('Neplatný odkaz – chybí ID lednice.');
@@ -255,9 +255,8 @@ export default function NewFoodPage() {
           {apiLoading && <p className="text-sm text-gray-500 mt-2">Načítám produkt…</p>}
           {/* Přidáme čtečku fotek */}
           {showLiveScanner && (
-            <EANCameraScanner
+            <OCRNumberScanner
               onDetected={(code) => {
-                setShowLiveScanner(false); // zavře kameru po úspěchu
                 setEan(code);
                 fetchProduct(code);
               }}
