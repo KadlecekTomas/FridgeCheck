@@ -366,6 +366,22 @@ export type Database = {
         }
         Relationships: []
       }
+      view_food_summary_by_storage_unit: {
+        Row: {
+          expired_count: number | null
+          expiring_soon_count: number | null
+          storage_unit_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foods_storage_unit_id_fkey"
+            columns: ["storage_unit_id"]
+            isOneToOne: false
+            referencedRelation: "storage_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_my_foods: {
@@ -524,5 +540,4 @@ export const Constants = {
   public: {
     Enums: {},
   },
-} as const  
-
+} as const

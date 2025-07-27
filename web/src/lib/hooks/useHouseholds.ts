@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabaseBrowser } from '../auth/client';
-import type { Database } from '@/types/supabase'
+import { Database } from '@/types/supabase';
 
 type Household = Database['public']['Tables']['households']['Row']
 

@@ -8,7 +8,7 @@ import * as Yup from 'yup';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import EANFileScanner from '@/components/ui/ean/EANFileScanner';
+import EANCameraScanner from '@/components/ui/ean/EANFileScanner';
 
 interface OpenFoodProduct {
   product_name?: string;
@@ -33,7 +33,8 @@ export default function NewFoodPage() {
   const [product, setProduct] = useState<OpenFoodProduct | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
-
+  const [showLiveScanner, setShowLiveScanner] = useState(false);
+ 
   useEffect(() => {
     const verifyAccess = async () => {
       if (!storageUnitId) return setError('Neplatný odkaz – chybí ID lednice.');
@@ -243,16 +244,26 @@ export default function NewFoodPage() {
             >
               {scanning ? 'Skenuji…' : '📷'}
             </button>
+            <button
+              onClick={() => setShowLiveScanner((prev) => !prev)}
+              className="bg-green-600 text-white px-3 py-2 rounded"
+            >
+              {showLiveScanner ? 'Zavřít kameru' : '🎥 Live scan'}
+            </button>
           </div>
           <div id="video-preview" className="w-full h-[250px] rounded overflow-hidden bg-black mt-2" />
           {apiLoading && <p className="text-sm text-gray-500 mt-2">Načítám produkt…</p>}
           {/* Přidáme čtečku fotek */}
-          <EANFileScanner
-            onResult={(code) => {
-              setEan(code);
-              fetchProduct(code);
-            }}
-          />
+          {showLiveScanner && (
+            <EANCameraScanner
+              onDetected={(code) => {
+                setShowLiveScanner(false); // zavře kameru po úspěchu
+                setEan(code);
+                fetchProduct(code);
+              }}
+            />
+          )}
+
         </div>
 
         {product && (
