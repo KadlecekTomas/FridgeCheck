@@ -1,4 +1,3 @@
-import type { Metadata } from 'next'
 import { Inter, Roboto_Mono } from 'next/font/google'
 import '@/styles/globals.css'
 import LayoutClientWrapper from './LayoutClientWrapper'
@@ -13,7 +12,7 @@ const mono = Roboto_Mono({
   subsets: ['latin', 'latin-ext'],
 })
 
-export const metadata: Metadata = {
+export const metadata = {
   title: {
     default: 'HlídačJídla',
     template: '%s · HlídačJídla',
