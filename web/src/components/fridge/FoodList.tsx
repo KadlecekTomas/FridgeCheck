@@ -77,7 +77,7 @@ export function FoodList({ foods }: { foods: Food[] }) {
               </button>
             </div>
           </div>
-        )}
+        )
       })}
 
       {confirmOpen && selectedFood && (
