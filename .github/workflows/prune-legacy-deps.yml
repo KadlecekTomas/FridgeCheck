@@ -42,6 +42,7 @@ jobs:
             @zxing/browser \
             axios \
             clsx \
+            date-fns \
             formik \
             framer-motion \
             fullpage.js \
@@ -51,10 +52,11 @@ jobs:
             react-icons \
             react-qr-barcode-scanner \
             react-qr-reader \
+            react-spinners \
             react-toastify \
             tesseract.js \
             yup
-          npm uninstall --save-dev @types/qrcode
+          npm uninstall --save-dev @types/fullpage.js @types/qrcode
 
       - name: Apply non-breaking npm audit fixes
         working-directory: web
