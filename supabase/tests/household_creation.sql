@@ -41,6 +41,16 @@ begin
   ) then
     raise exception 'create_household did not create owner membership';
   end if;
+
+  if not exists (
+    select 1
+    from public.storage_units
+    where household_id = created_household_id
+      and name = 'Lednice'
+      and type = 'fridge'
+  ) then
+    raise exception 'create_household did not create the default fridge';
+  end if;
 end;
 $$;
 

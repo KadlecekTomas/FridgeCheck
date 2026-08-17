@@ -1,23 +1,17 @@
-// app/dashboard/layout.tsx
-import { ReactNode } from 'react';
-import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/auth/server';
-import { LayoutProvider } from '@/context/LayoutContext';
-import Navbar from '@/components/ui/Navbar';
-import ProtectedRoute from '../ProtectedRoute';
+import { redirect } from 'next/navigation'
+import { AppShell } from '@/components/app/AppShell'
+import { getCurrentUserV2 } from '@/lib/auth/v2-server'
 
-export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const user = await getCurrentUser();
+export default async function AuthenticatedLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const user = await getCurrentUserV2()
 
   if (!user) {
-    redirect('/');
+    redirect('/login')
   }
-  return (
-    <LayoutProvider layout="auth">
-      <ProtectedRoute>
-        <Navbar />
-        {children}
-      </ProtectedRoute>
-    </LayoutProvider>
-  )
+
+  return <AppShell userEmail={user.email}>{children}</AppShell>
 }
