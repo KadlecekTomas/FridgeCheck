@@ -1,194 +1,219 @@
-'use client';
+'use client'
 
-import { useRouter } from 'next/navigation';
-import { Formik, Form, Field, ErrorMessage } from 'formik';
-import * as Yup from 'yup';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import Link from 'next/link';
-import { signUpWithEmail, signInWithGoogle, supabaseBrowser } from '@/lib/auth/client';
-import { motion } from 'framer-motion';
-import { ClipLoader } from 'react-spinners';
+import Link from 'next/link'
+import { FormEvent, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { CheckCircle2, Eye, EyeOff, Refrigerator } from 'lucide-react'
+import { supabaseV2Browser } from '@/lib/auth/v2-client'
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [alreadyLoggedIn, setAlreadyLoggedIn] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null)
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabaseBrowser().auth.getSession();
-      if (session) {
-        setAlreadyLoggedIn(true);
-        toast.info('Jsi již přihlášený 👋');
-        setTimeout(() => router.replace('/dashboard'), 1500);
-      } else {
-        setCheckingSession(false);
-      }
-    };
-    checkSession();
-  }, [router]);
+    let mounted = true
 
-  if (checkingSession || alreadyLoggedIn) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-green-50 px-6">
-        <div className="flex flex-col items-center space-y-4">
-          <ClipLoader color="#22c55e" size={48} speedMultiplier={1.2} />
-        </div>
-      </div>
-    );
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabaseV2Browser().auth.getSession()
+
+      if (!mounted) return
+      if (session) {
+        router.replace('/dashboard')
+        return
+      }
+      setCheckingSession(false)
+    }
+
+    void checkSession()
+    return () => {
+      mounted = false
+    }
+  }, [router])
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setError(null)
+
+    if (password.length < 8) {
+      setError('Heslo musí mít alespoň 8 znaků.')
+      return
+    }
+    if (password !== confirmPassword) {
+      setError('Hesla se neshodují.')
+      return
+    }
+
+    setSubmitting(true)
+    const normalizedEmail = email.trim()
+    const { data, error: signUpError } = await supabaseV2Browser().auth.signUp({
+      email: normalizedEmail,
+      password,
+    })
+
+    if (signUpError) {
+      setError('Účet se nepodařilo vytvořit. E-mail může být už použitý.')
+      setSubmitting(false)
+      return
+    }
+
+    if (data.session) {
+      router.replace('/dashboard')
+      router.refresh()
+      return
+    }
+
+    setConfirmationEmail(normalizedEmail)
+    setSubmitting(false)
   }
 
-  const initialValues = {
-    email: '',
-    password: '',
-    confirmPassword: '',
-  };
+  if (checkingSession) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-canvas px-4">
+        <div className="h-10 w-40 animate-pulse rounded-2xl bg-surface-muted" aria-label="Ověřuji přihlášení" />
+      </main>
+    )
+  }
 
-  const validationSchema = Yup.object({
-    email: Yup.string().email('Neplatný email').required('Email je povinný'),
-    password: Yup.string().min(6, 'Minimálně 6 znaků').required('Heslo je povinné'),
-    confirmPassword: Yup.string()
-      .oneOf([Yup.ref('password')], 'Hesla se musí shodovat')
-      .required('Potvrzení hesla je povinné'),
-  });
-
-  const handleSubmit = async (
-    values: typeof initialValues,
-    { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
-  ) => {
-    setLoading(true);
-    try {
-      await signUpWithEmail(values.email, values.password);
-      toast.success('Registrace proběhla úspěšně 🎉');
-      router.replace('/dashboard');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Neznámá chyba při registraci');
-    } finally {
-      setLoading(false);
-      setSubmitting(false);
-    }
-  };
-
-  const handleGoogleRegister = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Chyba při registraci přes Google');
-    }
-  };
+  if (confirmationEmail) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-8">
+        <section className="w-full max-w-md rounded-2xl border border-border bg-surface p-7 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+            <CheckCircle2 size={23} aria-hidden="true" />
+          </span>
+          <h1 className="mt-5 text-2xl font-bold tracking-[-0.02em] text-text">Zkontroluj e-mail</h1>
+          <p className="mt-2 text-sm leading-6 text-text-muted">
+            Pokud projekt vyžaduje potvrzení adresy, poslali jsme odkaz na{' '}
+            <strong className="font-semibold text-text">{confirmationEmail}</strong>.
+          </p>
+          <Link href="/login" className="button-primary mt-6 w-full">
+            Přejít na přihlášení
+          </Link>
+        </section>
+      </main>
+    )
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-green-50 px-6">
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md bg-white rounded-3xl shadow-xl p-10 space-y-6 border border-green-100"
-      >
-        <div className="text-center">
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Vytvoř si účet 🧊</h1>
-          <p className="text-gray-500 text-base">Zaregistruj se a měj lednici pod kontrolou</p>
-        </div>
+    <main className="min-h-dvh bg-canvas px-4 py-8 sm:py-12">
+      <div className="mx-auto grid min-h-[calc(100dvh-6rem)] max-w-5xl items-center gap-8 lg:grid-cols-[1fr_440px]">
+        <section className="hidden max-w-xl lg:block">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white">
+            <Refrigerator size={23} aria-hidden="true" />
+          </span>
+          <p className="mt-6 text-sm font-semibold text-primary">HlídačJídla</p>
+          <h1 className="mt-2 text-4xl font-bold leading-tight tracking-[-0.04em] text-text">
+            Začni tím, co máš opravdu doma.
+          </h1>
+          <p className="mt-4 max-w-lg text-base leading-7 text-text-muted">
+            Po registraci založíš domácnost, dostaneš výchozí Lednici a můžeš hned přidat první balení.
+          </p>
+        </section>
 
-        <Formik
-          initialValues={initialValues}
-          validationSchema={validationSchema}
-          onSubmit={handleSubmit}
-          validateOnBlur
-          validateOnChange={false}
-        >
-          {({ isSubmitting }) => (
-            <Form className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <Field
-                  id="email"
-                  type="email"
-                  name="email"
-                  placeholder="např. uzivatel@email.com"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
-                <ErrorMessage name="email" component="div" className="text-sm text-red-500 mt-1" />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Heslo</label>
-                <div className="relative">
-                  <Field
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"
-                  >
-                    {showPassword ? '🙈' : '👁️'}
-                  </button>
-                </div>
-                <ErrorMessage name="password" component="div" className="text-sm text-red-500 mt-1" />
-              </div>
-
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Potvrzení hesla</label>
-                <div className="relative">
-                  <Field
-                    id="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"
-                  >
-                    {showConfirmPassword ? '🙈' : '👁️'}
-                  </button>
-                </div>
-                <ErrorMessage name="confirmPassword" component="div" className="text-sm text-red-500 mt-1" />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting || loading}
-                className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-semibold transition-transform hover:scale-[1.02] active:scale-95"
-              >
-                {loading ? 'Registruji...' : 'Zaregistrovat se'}
-              </button>
-            </Form>
-          )}
-        </Formik>
-
-        <div className="relative py-4">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-3 text-gray-400">nebo</span>
+        <section className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
+          <div className="lg:hidden">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white">
+              <Refrigerator size={19} aria-hidden="true" />
+            </span>
+            <p className="mt-3 text-sm font-bold text-text">HlídačJídla</p>
           </div>
-        </div>
 
-        <button
-          onClick={handleGoogleRegister}
-          className="w-full py-3 border border-gray-300 bg-white rounded-xl flex justify-center items-center text-sm font-medium hover:bg-gray-50 transition-transform hover:scale-[1.01] active:scale-95"
-        >
-          Registrovat přes Google
-        </button>
+          <h2 className="mt-6 text-[28px] font-bold tracking-[-0.03em] text-text lg:mt-0">
+            Vytvořit účet
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-text-muted">
+            Stačí e-mail a heslo. Další údaje po tobě teď nepotřebujeme.
+          </p>
 
-        <div className="text-center text-sm text-gray-500 pt-4">
-          Už máš účet?{' '}
-          <Link href="/login" className="text-green-600 hover:underline font-semibold">
-            Přihlas se
-          </Link>
-        </div>
-      </motion.div>
-    </div>
-  );
+          <form onSubmit={submit} className="mt-6 space-y-4">
+            <label className="block">
+              <span className="field-label">E-mail</span>
+              <input
+                className="input-field"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="ty@email.cz"
+                required
+                autoFocus
+              />
+            </label>
+
+            <div className="block">
+              <label htmlFor="register-password" className="field-label">
+                Heslo
+              </label>
+              <div className="relative">
+                <input
+                  id="register-password"
+                  className="input-field pr-12"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  minLength={8}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  aria-describedby="register-password-hint"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute right-1.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl text-text-muted hover:bg-surface-muted hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  aria-label={showPassword ? 'Skrýt heslo' : 'Zobrazit heslo'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <span id="register-password-hint" className="mt-1.5 block text-xs text-text-muted">
+                Alespoň 8 znaků.
+              </span>
+            </div>
+
+            <label className="block">
+              <span className="field-label">Heslo znovu</span>
+              <input
+                className="input-field"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                minLength={8}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                required
+              />
+            </label>
+
+            {error ? (
+              <div className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">
+                {error}
+              </div>
+            ) : null}
+
+            <button type="submit" className="button-primary w-full" disabled={submitting}>
+              {submitting ? 'Vytvářím účet…' : 'Vytvořit účet'}
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-text-muted">
+            Už účet máš?{' '}
+            <Link
+              href="/login"
+              className="font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Přihlásit se
+            </Link>
+          </p>
+        </section>
+      </div>
+    </main>
+  )
 }

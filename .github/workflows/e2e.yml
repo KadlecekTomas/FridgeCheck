@@ -1,0 +1,116 @@
+name: Core E2E
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'web/**'
+      - 'supabase/**'
+      - '.github/workflows/e2e.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'web/**'
+      - 'supabase/**'
+      - '.github/workflows/e2e.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  household-inventory-loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Install pinned Playwright runner
+        working-directory: web
+        run: npm install --no-save --package-lock=false @playwright/test@1.61.1
+
+      - name: Install Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
+
+      - name: Start clean local Supabase
+        run: |
+          supabase start
+          supabase db reset
+
+      - name: Export local browser credentials
+        shell: bash
+        run: |
+          supabase status -o env > /tmp/supabase.env
+          set -a
+          source /tmp/supabase.env
+          set +a
+          echo "NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+
+      - name: Build production Next.js app
+        working-directory: web
+        run: npm run build
+
+      - name: Start production Next.js app
+        shell: bash
+        run: |
+          cd web
+          npm run start -- --hostname 127.0.0.1 > /tmp/fridgecheck-next.log 2>&1 &
+          echo $! > /tmp/fridgecheck-next.pid
+
+          for attempt in {1..90}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/register > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat /tmp/fridgecheck-next.log
+          exit 1
+
+      - name: Run mobile core-flow E2E
+        working-directory: web
+        run: npx playwright test e2e/core-flow.spec.ts --reporter=line
+
+      - name: Upload E2E failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fridgecheck-e2e-failure
+          path: |
+            web/test-results
+            /tmp/fridgecheck-next.log
+          if-no-files-found: ignore
+
+      - name: Stop services
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/fridgecheck-next.pid ]; then
+            kill "$(cat /tmp/fridgecheck-next.pid)" || true
+          fi
+          supabase stop --no-backup || true
