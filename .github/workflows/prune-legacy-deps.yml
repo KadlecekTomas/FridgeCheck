@@ -1,0 +1,84 @@
+name: Prune legacy dependencies
+
+on:
+  push:
+    branches:
+      - agent/dependency-auth-cleanup
+    paths:
+      - '.github/workflows/prune-legacy-deps.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: agent/dependency-auth-cleanup
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install current lockfile
+        working-directory: web
+        run: npm ci
+
+      - name: Remove unreachable legacy packages
+        working-directory: web
+        run: |
+          npm uninstall \
+            @fullpage/react-fullpage \
+            @heroicons/react \
+            @supabase/auth-helpers-nextjs \
+            @zxing/browser \
+            axios \
+            clsx \
+            formik \
+            framer-motion \
+            fullpage.js \
+            html5-qrcode \
+            jsqr \
+            qrcode \
+            react-icons \
+            react-qr-barcode-scanner \
+            react-qr-reader \
+            react-toastify \
+            tesseract.js \
+            yup
+          npm uninstall --save-dev @types/qrcode
+
+      - name: Apply non-breaking npm audit fixes
+        working-directory: web
+        run: npm audit fix
+
+      - name: Validate pruned application
+        working-directory: web
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
+          npm audit --audit-level=critical
+
+      - name: Commit generated package files
+        shell: bash
+        run: |
+          if git diff --quiet -- web/package.json web/package-lock.json; then
+            echo 'No package changes generated.'
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add web/package.json web/package-lock.json
+          git commit -m 'chore(web): prune legacy dependencies'
+          git push origin HEAD:agent/dependency-auth-cleanup
