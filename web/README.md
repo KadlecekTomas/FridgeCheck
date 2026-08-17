@@ -41,14 +41,15 @@ Production build:
 npm run build
 ```
 
-Lint and type checking:
+Quality checks:
 
 ```bash
 npm run lint
 npm run typecheck
+npm test
 ```
 
-The project is being hardened. Unit/integration tests, coverage and E2E will be added as subsequent quality-baseline stages rather than being represented as already implemented.
+The current unit-test baseline uses Node.js 24's built-in test runner for pure domain logic. Expiry/calendar-day classification is the first covered domain. Integration/RLS tests, coverage gates and browser E2E remain subsequent hardening stages.
 
 ## Architecture direction
 
