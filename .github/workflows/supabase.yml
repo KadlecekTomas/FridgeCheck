@@ -1,0 +1,55 @@
+name: Supabase CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/supabase.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/supabase.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Rebuild database from migrations
+        run: supabase db reset
+
+      - name: Run database regression tests
+        run: |
+          for test_file in supabase/tests/*.sql; do
+            echo "Running ${test_file}"
+            docker exec -i supabase_db_fridgecheck-dev \
+              psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+              < "${test_file}"
+          done
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
