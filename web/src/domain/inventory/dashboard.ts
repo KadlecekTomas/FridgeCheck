@@ -1,4 +1,4 @@
-import { daysUntilExpiry } from '@/domain/expiry/expiry'
+import { daysUntilExpiry } from '../expiry/expiry.ts'
 
 export type DashboardExpiryType = 'use_by' | 'best_before' | 'unknown'
 export type DashboardBatchStatus = 'active' | 'depleted' | 'discarded'
