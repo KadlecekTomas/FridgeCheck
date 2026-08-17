@@ -62,14 +62,14 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
 
     const savedId = window.localStorage.getItem(STORAGE_KEY)
     const nextId =
-      [preferredId, savedId, activeHouseholdId].find(
+      [preferredId, savedId].find(
         (candidate) => candidate && nextHouseholds.some((household) => household.id === candidate)
       ) ?? nextHouseholds[0].id
 
     setActiveHouseholdIdState(nextId)
     window.localStorage.setItem(STORAGE_KEY, nextId)
     setLoading(false)
-  }, [activeHouseholdId])
+  }, [])
 
   useEffect(() => {
     void refreshHouseholds()

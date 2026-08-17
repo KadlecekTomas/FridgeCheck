@@ -8,15 +8,23 @@ import {
   PackageOpen,
   Plus,
   ShoppingBasket,
+  type LucideIcon,
 } from 'lucide-react'
 
-const items = [
+type NavigationItem = {
+  href: string
+  label: string
+  icon: LucideIcon
+  primary?: boolean
+}
+
+const items: NavigationItem[] = [
   { href: '/dashboard', label: 'Domů', icon: Home },
   { href: '/inventory', label: 'Zásoby', icon: PackageOpen },
   { href: '/inventory/new', label: 'Přidat', icon: Plus, primary: true },
   { href: '/shopping', label: 'Nákup', icon: ShoppingBasket },
   { href: '/more', label: 'Více', icon: MoreHorizontal },
-] as const
+]
 
 function isActive(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === href
