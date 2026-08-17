@@ -1,0 +1,30 @@
+# Dependency directories
+node_modules/
+**/node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Build and test output
+.next/
+**/.next/
+coverage/
+**/coverage/
+out/
+dist/
+
+# Tooling / deployment state
+.vercel/
+**/.vercel/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor noise
+.DS_Store

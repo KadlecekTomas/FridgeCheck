@@ -83,7 +83,7 @@ npm ci
 npm run dev
 ```
 
-Existing scripts currently include development, linting and production build. The testing/typecheck/CI toolchain will be expanded to satisfy the contracts under `docs/`.
+The current web quality baseline runs lockfile installation, lint, explicit TypeScript type checking and a production build on pull requests targeting `main`. Unit/integration tests, coverage, browser E2E and database/RLS verification are still subsequent hardening stages and must not be represented as already implemented.
 
 Never interpret a successful local build as sufficient release validation.
 

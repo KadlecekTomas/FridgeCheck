@@ -18,6 +18,16 @@ Current application stack:
 
 The existing dependency set is historical evidence, not a requirement to keep every package. Remove redundant libraries when safe and justified.
 
+## Runtime
+
+The supported web runtime is Node.js 24 LTS. The version is declared in [`.nvmrc`](./.nvmrc) and `package.json` so local development and CI use the same major version.
+
+With `nvm`:
+
+```bash
+nvm use
+```
+
 ## Local development
 
 ```bash
@@ -31,13 +41,14 @@ Production build:
 npm run build
 ```
 
-Lint:
+Lint and type checking:
 
 ```bash
 npm run lint
+npm run typecheck
 ```
 
-The project is being hardened. Additional required scripts for type checking, unit/integration tests, coverage and E2E will be added as part of the quality baseline.
+The project is being hardened. Unit/integration tests, coverage and E2E will be added as subsequent quality-baseline stages rather than being represented as already implemented.
 
 ## Architecture direction
 
