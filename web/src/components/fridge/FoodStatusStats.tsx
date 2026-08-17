@@ -1,6 +1,7 @@
 'use client'
 
 import clsx from 'clsx'
+import { classifyExpiryDate, resolveExpiringDays } from '@/domain/expiry/expiry'
 
 type Props = {
     foods: {
@@ -14,17 +15,16 @@ type Props = {
 
 export function FoodStatusStats({ foods, onFilterChange, activeFilter }: Props) {
     const now = new Date()
-    const expiringDays = parseInt(process.env.NEXT_PUBLIC_EXPIRING_DAYS || '3', 10)
+    const expiringDays = resolveExpiringDays(process.env.NEXT_PUBLIC_EXPIRING_DAYS)
 
     let ok = 0
     let expiring = 0
     let expired = 0
 
     for (const food of foods) {
-        const expires = new Date(food.expiration_date)
-        const diff = (expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        if (diff < 0) expired++
-        else if (diff <= expiringDays) expiring++
+        const status = classifyExpiryDate(food.expiration_date, expiringDays, now)
+        if (status === 'expired') expired++
+        else if (status === 'expiring') expiring++
         else ok++
     }
 
