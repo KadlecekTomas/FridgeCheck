@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FridgeCheck Web
 
-## Getting Started
+The `web/` application is the primary implementation target for the current FridgeCheck / HlídačJídla product.
 
-First, run the development server:
+Before changing this directory, read the repository root [`AGENTS.md`](../AGENTS.md) and the relevant documents under [`docs/`](../docs/README.md).
+
+## Stack
+
+Current application stack:
+
+- Next.js 14
+- React 18
+- TypeScript
+- Tailwind CSS
+- Supabase Auth / database
+- Open Food Facts integration
+- browser barcode/camera tooling
+
+The existing dependency set is historical evidence, not a requirement to keep every package. Remove redundant libraries when safe and justified.
+
+## Local development
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Production build:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Lint:
 
-## Learn More
+```bash
+npm run lint
+```
 
-To learn more about Next.js, take a look at the following resources:
+The project is being hardened. Additional required scripts for type checking, unit/integration tests, coverage and E2E will be added as part of the quality baseline.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Architecture direction
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Keep critical food/inventory behavior out of page components.
 
-## Deploy on Vercel
+Move toward explicit modules for:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```text
+src/domain/inventory/
+src/domain/expiry/
+src/domain/replenishment/
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Presentation should invoke tested domain/application behavior rather than reimplement rules inline.
+
+See [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
+
+## Supabase
+
+Client-side authorization checks are UX only. Household isolation must be enforced by trusted backend/database policies, including RLS where applicable.
+
+Never expose service-role/admin credentials in browser code.
+
+See [`../docs/SECURITY.md`](../docs/SECURITY.md).
+
+## Inventory model
+
+Do not expand the legacy `foods` concept without considering the target model:
+
+- Product
+- InventoryBatch
+- StockTarget
+- InventoryEvent
+- ShoppingListItem / derived replenishment need
+
+Expiry is a batch property.
+
+See [`../docs/DATA_MODEL.md`](../docs/DATA_MODEL.md).
+
+## Tests
+
+Behavioral changes require automated coverage appropriate to the layer.
+
+Critical flows must eventually be covered in a real browser. Domain calculations should be pure and exhaustively tested where practical.
+
+See [`../docs/TESTING.md`](../docs/TESTING.md).
+
+## External product data
+
+Open Food Facts is a convenience source, not the source of truth.
+
+The app must remain usable when lookup fails or returns incomplete/incorrect metadata. Normalize responses behind an adapter rather than coupling UI/domain code to the raw external schema.
+
+## Completion rule
+
+Do not report web work as done until the affected behavior satisfies [`../docs/DEFINITION_OF_DONE.md`](../docs/DEFINITION_OF_DONE.md).
