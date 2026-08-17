@@ -1,0 +1,50 @@
+name: Add Supabase SSR dependency
+
+on:
+  push:
+    branches:
+      - agent/v2-app-shell-dashboard
+    paths:
+      - '.github/workflows/add-supabase-ssr.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: agent/v2-app-shell-dashboard
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Add supported Supabase SSR client
+        working-directory: web
+        run: npm install --save-exact @supabase/ssr@0.12.4
+
+      - name: Keep critical dependency gate green
+        working-directory: web
+        run: npm audit --audit-level=critical
+
+      - name: Commit generated dependency lock
+        shell: bash
+        run: |
+          if git diff --quiet -- web/package.json web/package-lock.json; then
+            echo 'No dependency changes generated.'
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add web/package.json web/package-lock.json
+          git commit -m 'chore(web): add supported Supabase SSR client'
+          git push origin HEAD:agent/v2-app-shell-dashboard
