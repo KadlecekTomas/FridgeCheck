@@ -6,6 +6,11 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        source: '/dashboard/new-household',
+        destination: '/dashboard',
+        permanent: false,
+      },
+      {
         source: '/foods/new',
         destination: '/inventory/new',
         permanent: false,
