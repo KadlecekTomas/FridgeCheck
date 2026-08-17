@@ -12,6 +12,24 @@ Defines what problem FridgeCheck solves, the core user loop, product priorities 
 
 Read before changing user-facing behavior or proposing a new feature.
 
+### `DESIGN_SYSTEM.md`
+
+Defines the visual and interaction direction for the mobile-first web/PWA, including shared tokens, component principles, accessibility baseline and UI anti-patterns.
+
+Read before implementing or materially changing product UI.
+
+### `DASHBOARD_UX.md`
+
+Defines the action-first home-screen hierarchy, section behavior, loading/error/empty states, navigation direction and migration guidance from the current statistics-heavy dashboard.
+
+Read before changing the authenticated dashboard or its supporting components.
+
+### `DESIGN_REFERENCES.md`
+
+Records external visual/interaction references and the licensing boundary for using them.
+
+Use references for inspiration only; the project contracts remain authoritative.
+
 ### `ARCHITECTURE.md`
 
 Defines architectural layers, server/client boundaries, external integrations, date/unit rules, migrations and observability principles.
