@@ -11,7 +11,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --config eslint.config.mjs --ext .ts,.tsx,.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test"
   },
   "dependencies": {
     "@fullpage/react-fullpage": "^0.1.49",

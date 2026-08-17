@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabaseBrowser } from '@/lib/auth/client'
+import { classifyExpiryDate, resolveExpiringDays } from '@/domain/expiry/expiry'
 
 type Stats = {
   okFoods: number
@@ -27,17 +28,16 @@ export default function StatsOverview({ fridgeId }: { fridgeId: string }) {
       }
 
       const now = new Date()
-      const soon = new Date()
-      soon.setDate(now.getDate() + 3)
+      const expiringDays = resolveExpiringDays(process.env.NEXT_PUBLIC_EXPIRING_DAYS)
 
       let ok = 0,
         expiring = 0,
         expired = 0
 
       foods?.forEach((food) => {
-        const exp = new Date(food.expiration_date)
-        if (exp < now) expired++
-        else if (exp <= soon) expiring++
+        const status = classifyExpiryDate(food.expiration_date, expiringDays, now)
+        if (status === 'expired') expired++
+        else if (status === 'expiring') expiring++
         else ok++
       })
 

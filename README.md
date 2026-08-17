@@ -83,7 +83,7 @@ npm ci
 npm run dev
 ```
 
-The current web quality baseline runs lockfile installation, lint, explicit TypeScript type checking and a production build on pull requests targeting `main`. Unit/integration tests, coverage, browser E2E and database/RLS verification are still subsequent hardening stages and must not be represented as already implemented.
+The current web quality baseline runs lockfile installation, lint, explicit TypeScript type checking, the initial pure-domain unit-test suite and a production build on pull requests targeting `main`. Integration/RLS tests, coverage gates and browser E2E are still subsequent hardening stages and must not be represented as already implemented.
 
 Never interpret a successful local build as sufficient release validation.
 
@@ -93,7 +93,7 @@ Current order of work:
 
 1. repository hygiene and reproducibility
 2. enforceable CI on pull requests
-3. typecheck + unit/integration test infrastructure
+3. expand unit/integration test infrastructure around critical domain behavior
 4. browser E2E coverage of critical flows
 5. database/RLS verification
 6. inventory domain refactor toward Product + InventoryBatch + StockTarget + InventoryEvent

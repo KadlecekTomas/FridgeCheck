@@ -6,11 +6,19 @@ CI is a merge gate, not a decorative status badge.
 
 Every pull request that can affect production behavior must be validated automatically before merge.
 
-## Current gap
+## Current implementation state
 
-The existing workflows are a starting point only. The target contract below defines the standard the repository should move to.
+The web workflow currently runs on pull requests targeting `main` and pushes to `main`, and enforces:
 
-Do not claim this document is already implemented until the workflows actually enforce it.
+- lockfile dependency installation with `npm ci`
+- ESLint
+- explicit TypeScript type checking
+- the initial pure-domain unit-test suite
+- production build
+
+This is a real baseline, not the complete target. Integration tests, database/RLS verification, coverage gates, browser E2E and explicit dependency/security policy are still pending hardening stages.
+
+Do not claim the full target contract below is implemented until the workflows actually enforce it.
 
 ## Required triggers
 
