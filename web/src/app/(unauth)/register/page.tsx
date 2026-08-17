@@ -149,16 +149,20 @@ export default function RegisterPage() {
               />
             </label>
 
-            <label className="block">
-              <span className="field-label">Heslo</span>
+            <div className="block">
+              <label htmlFor="register-password" className="field-label">
+                Heslo
+              </label>
               <div className="relative">
                 <input
+                  id="register-password"
                   className="input-field pr-12"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   minLength={8}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
+                  aria-describedby="register-password-hint"
                   required
                 />
                 <button
@@ -170,8 +174,10 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              <span className="mt-1.5 block text-xs text-text-muted">Alespoň 8 znaků.</span>
-            </label>
+              <span id="register-password-hint" className="mt-1.5 block text-xs text-text-muted">
+                Alespoň 8 znaků.
+              </span>
+            </div>
 
             <label className="block">
               <span className="field-label">Heslo znovu</span>

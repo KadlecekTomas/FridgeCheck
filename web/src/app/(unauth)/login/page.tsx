@@ -111,10 +111,13 @@ export default function LoginPage() {
               />
             </label>
 
-            <label className="block">
-              <span className="field-label">Heslo</span>
+            <div className="block">
+              <label htmlFor="login-password" className="field-label">
+                Heslo
+              </label>
               <div className="relative">
                 <input
+                  id="login-password"
                   className="input-field pr-12"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
@@ -131,7 +134,7 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-            </label>
+            </div>
 
             {error ? (
               <div className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">
