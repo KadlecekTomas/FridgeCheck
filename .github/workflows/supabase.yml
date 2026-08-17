@@ -41,11 +41,14 @@ jobs:
       - name: Rebuild database from migrations
         run: supabase db reset
 
-      - name: Run household RLS regression test
+      - name: Run database regression tests
         run: |
-          docker exec -i supabase_db_fridgecheck-dev \
-            psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
-            < supabase/tests/rls_household_isolation.sql
+          for test_file in supabase/tests/*.sql; do
+            echo "Running ${test_file}"
+            docker exec -i supabase_db_fridgecheck-dev \
+              psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+              < "${test_file}"
+          done
 
       - name: Stop local Supabase
         if: always()
