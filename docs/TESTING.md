@@ -6,6 +6,21 @@ Tests exist to provide confidence that FridgeCheck behaves correctly in realisti
 
 A change is not considered safe because it compiles or because a single happy-path test passes.
 
+## Current executable baseline
+
+The web package has an initial pure-domain unit-test baseline using the Node.js 24 built-in `node:test` runner and native TypeScript execution.
+
+Run it with:
+
+```bash
+cd web
+npm test
+```
+
+Web CI runs this unit suite as a blocking pull-request step. The first covered domain is expiry/calendar-day classification. This does **not** mean the broader testing contract is complete: integration tests, RLS/database tests, browser E2E and coverage gates are still pending hardening stages.
+
+The zero-dependency runner is intentional for small pure domain modules. Introduce a third-party test framework only when it provides concrete value that the built-in runner cannot provide cleanly.
+
 ## Test pyramid
 
 ### 1. Unit tests
