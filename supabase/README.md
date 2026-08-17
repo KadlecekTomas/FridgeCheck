@@ -2,7 +2,7 @@
 
 This directory is the source of truth for the FridgeCheck / HlídačJídla database contract.
 
-The current development project is a disposable Supabase Free-tier project in `eu-central-1` (Frankfurt). Recreating the schema from this repository must be possible without relying on dashboard-only changes.
+The current development project is a disposable Supabase Free-tier project in `eu-central-1` (Frankfurt), project ref `wizxtgaadruopkenihfj`. Recreating the schema from this repository must be possible without relying on dashboard-only changes.
 
 ## Source of truth
 
