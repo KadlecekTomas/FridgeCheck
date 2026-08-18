@@ -8,50 +8,90 @@ Every pull request that can affect production behavior must be validated automat
 
 ## Current implementation state
 
-The web workflow currently runs on pull requests targeting `main` and pushes to `main`, and enforces:
+The repository now enforces three complementary automated pipelines according to the paths changed.
 
-- lockfile dependency installation with `npm ci`
-- ESLint
-- explicit TypeScript type checking
-- the initial pure-domain unit-test suite
-- production build
+### Web CI
 
-This is a real baseline, not the complete target. Integration tests, database/RLS verification, coverage gates, browser E2E and explicit dependency/security policy are still pending hardening stages.
+On relevant pull requests targeting `main` and pushes to `main`, Web CI enforces:
 
-Do not claim the full target contract below is implemented until the workflows actually enforce it.
+- lockfile dependency installation with `npm ci`,
+- ESLint,
+- explicit TypeScript type checking,
+- the pure-domain Node.js unit-test suite,
+- Next.js 16 Turbopack production build,
+- dependency audit failing on HIGH-or-higher advisories.
+
+### Supabase CI
+
+On Supabase schema/test changes, database CI starts a disposable local Supabase stack and enforces:
+
+- clean database rebuild from repository migrations,
+- SQL regression tests,
+- RLS/household-isolation tests,
+- deterministic teardown.
+
+Production is not the first environment where repository migrations are exercised.
+
+### Core E2E
+
+The browser workflow runs the complete Playwright suite rather than a hard-coded single spec. It:
+
+- installs the pinned Playwright runner and Chromium,
+- starts a clean local Supabase environment,
+- rebuilds that environment from repository migrations,
+- exports only local public browser credentials,
+- builds and starts the production Next.js app,
+- runs the complete mobile-viewport browser suite,
+- uploads traces/screenshots/logs on failure,
+- tears down services afterward.
+
+Current browser coverage includes auth, password recovery through a real locally captured email/PKCE flow, hostile public-client household isolation, household/storage bootstrap, inventory batches, expiry, FEFO consumption, correction, discard, history, replenishment/shopping, EAN/Open Food Facts integration, camera fallback and PWA metadata.
+
+### Remaining target gaps
+
+Do not overstate the current implementation. The following target items are not yet proven as permanent repository gates:
+
+- an explicit coverage threshold for critical domain modules,
+- a dedicated repository secret-scanning gate beyond platform/default protections,
+- branch-protection settings requiring the checks above; previous automation access was insufficient to prove or configure repository branch protection,
+- hosted production deployment + smoke verification.
+
+Those gaps must be tracked/fixed deliberately rather than represented as already enforced.
 
 ## Required triggers
 
 CI must run on:
 
-- pull requests targeting `main`
-- pushes to `main`
-- relevant workflow/config changes
+- pull requests targeting `main`,
+- pushes to `main`,
+- relevant workflow/config changes.
 
 Path filtering may be used for efficiency only if it cannot skip checks required by a change.
 
 ## Web quality pipeline
 
-The web pipeline should eventually include these blocking stages:
+The desired web quality pipeline includes:
 
-1. checkout
-2. install dependencies with lockfile enforcement (`npm ci`)
-3. dependency/cache setup
-4. formatting verification if formatting is standardized
-5. ESLint
-6. TypeScript type check
-7. unit tests
-8. integration tests
-9. coverage gate
-10. production build
-11. E2E tests
-12. security/dependency checks appropriate to the stack
+1. checkout,
+2. install dependencies with lockfile enforcement (`npm ci`),
+3. dependency/cache setup,
+4. formatting verification if formatting is standardized,
+5. ESLint,
+6. TypeScript type check,
+7. unit tests,
+8. integration/database tests when relevant,
+9. coverage gate for critical domain code,
+10. production build,
+11. E2E tests,
+12. security/dependency checks appropriate to the stack.
 
-Independent jobs should run in parallel where useful, but merge protection should require all blocking checks.
+Independent jobs should run in parallel where useful, but merge protection should require all blocking checks relevant to the change.
 
 ## Node and action versions
 
 Use a supported Node LTS version and keep it consistent across local tooling and CI.
+
+The current web runtime is Node.js 24 LTS.
 
 Pin or deliberately version GitHub Actions. Do not leave the repository indefinitely on obsolete major versions.
 
@@ -63,51 +103,53 @@ A PR must not merge when any required check is failing or missing.
 
 Never solve a red pipeline by:
 
-- commenting out a test
-- marking a meaningful test as skipped
-- removing a lint/typecheck rule without technical justification
-- changing a required job to non-blocking solely to unblock merge
-- adding unconditional retries to hide flakiness
-- catching and ignoring test failures
+- commenting out a test,
+- marking a meaningful test as skipped,
+- removing a lint/typecheck rule without technical justification,
+- changing a required job to non-blocking solely to unblock merge,
+- adding unconditional retries to hide flakiness,
+- catching and ignoring test failures.
 
 Fix the underlying problem.
 
 ## E2E in CI
 
-Critical browser tests should run against a deterministic test environment.
+Critical browser tests run against a deterministic test environment.
 
-The E2E job should provide failure artifacts, preferably:
+The E2E job should retain useful failure artifacts such as:
 
-- Playwright trace
-- screenshots
-- video when useful
-- test report
+- Playwright trace,
+- screenshots,
+- application logs,
+- video/reporting when materially useful.
 
-External services such as Open Food Facts should normally be mocked/intercepted for deterministic blocking E2E.
+External services such as Open Food Facts must not be a live blocking dependency in CI; browser E2E intercepts the internal EAN adapter with controlled fixtures while unit tests validate external payload mapping.
+
+Auth recovery is intentionally different: the local Supabase mail-capture service is used so the suite follows a real local recovery email without contacting a third-party SMTP provider.
 
 ## Database CI
 
 Schema/migration changes must be validated in an isolated environment.
 
-Target checks include:
+Required checks include:
 
-- migrations apply cleanly from the expected baseline
-- generated types are current where generated types are used
-- integration tests pass against the migrated schema
-- RLS/access tests pass
-- destructive or irreversible changes are identified explicitly
+- migrations apply cleanly from the expected baseline,
+- generated types are current where generated types are used,
+- integration/regression tests pass against the migrated schema,
+- RLS/access tests pass,
+- destructive or irreversible changes are identified explicitly.
 
-Production must never be the first environment in which a migration is exercised.
+Repository migrations are the schema source of truth. Dashboard-only DDL drift is not acceptable.
 
 ## Security checks
 
-The pipeline should include pragmatic security gates such as:
+The current web pipeline blocks HIGH-or-higher npm advisories.
 
-- dependency audit with an explicit severity policy
-- secret scanning
-- static checks supplied by the ecosystem where useful
+Database authorization is additionally protected by SQL RLS regression tests and a hostile public-client browser-suite test that proves a second authenticated user cannot read or mutate another household.
 
-Do not blindly fail the build on noisy scanners without a triage policy, but do not silently ignore high-confidence critical findings.
+The pipeline should continue to add pragmatic security gates where they provide high-confidence signal, including explicit secret scanning.
+
+Do not blindly fail the build on noisy scanners without a triage policy, but do not silently ignore high-confidence findings.
 
 ## Branch protection target
 
@@ -115,21 +157,25 @@ Do not blindly fail the build on noisy scanners without a triage policy, but do 
 
 Recommended policy:
 
-- no routine direct pushes
-- required status checks
-- branch must be up to date before merge when necessary
-- unresolved review conversations block merge when review is used
-- force-push disabled on `main`
+- no routine direct pushes,
+- required status checks,
+- branch must be up to date before merge when necessary,
+- unresolved review conversations block merge when review is used,
+- force-push disabled on `main`.
+
+The repository workflow follows this policy operationally, but automated proof/configuration of branch protection is still a tracked gap and must not be claimed as complete.
 
 ## Deployment principle
 
-Deployment should consume a revision that passed the required checks.
+Deployment must consume a revision that passed the required checks.
 
 Do not deploy an untested working tree or an unrelated commit.
 
-For future production deployment, prefer:
+Production sequence:
 
-`PR -> required CI -> merge main -> production build/deploy -> smoke check`
+`PR -> relevant blocking CI -> merge main -> production build/deploy -> production smoke check`
+
+The detailed hosted release procedure is in [`RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md).
 
 ## Environments and secrets
 
@@ -140,6 +186,8 @@ Never commit secrets. Never expose server-only credentials through `NEXT_PUBLIC_
 CI secrets should be granted the minimum permissions needed for the job.
 
 Test credentials must not have access to production household data.
+
+The expected public web environment shape is documented in [`../web/.env.example`](../web/.env.example).
 
 ## Caching
 
@@ -159,9 +207,9 @@ A flaky blocking test is a production-quality problem.
 
 When a test is flaky:
 
-1. capture evidence
-2. identify the nondeterminism
-3. fix it
+1. capture evidence,
+2. identify the nondeterminism,
+3. fix it.
 
 Do not institutionalize “rerun until green”.
 
@@ -173,15 +221,16 @@ Workflow changes must be reviewed as production code.
 
 ## Required completion evidence
 
-When reporting a change as ready, include the exact checks that passed.
+When reporting a change as ready, include the exact checks that passed and the exact revision they validated where practical.
 
-Example target statement:
+Example:
 
-- lint: passed
-- typecheck: passed
-- unit: passed
-- integration: passed
-- build: passed
-- E2E: passed
+- lint: passed,
+- typecheck: passed,
+- unit: passed,
+- database/RLS: passed when relevant,
+- build: passed,
+- E2E: passed,
+- dependency audit: passed.
 
-If a check does not exist yet or could not run, say so explicitly. Never imply future target CI is already enforced.
+If a check does not exist yet, was not relevant, or could not run, say so explicitly. Never imply a target gate is already enforced when it is not.
