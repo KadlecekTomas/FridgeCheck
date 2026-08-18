@@ -1,8 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Home, LogOut, Plus } from 'lucide-react'
+import { Clock3, Home, LogOut, Plus } from 'lucide-react'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
@@ -102,6 +103,22 @@ export default function MorePage() {
         </form>
         {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
       </section>
+
+      <Link
+        href="/history"
+        className="flex min-h-20 items-center gap-4 rounded-2xl border border-border bg-surface p-5 transition hover:border-primary/30 hover:bg-primary-soft/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+          <Clock3 size={19} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold text-text">Historie změn</span>
+          <span className="mt-0.5 block text-sm leading-5 text-text-muted">
+            Nákupy, spotřeba, vyhození a korekce zásob.
+          </span>
+        </span>
+        <span className="text-sm font-semibold text-primary" aria-hidden="true">Otevřít</span>
+      </Link>
 
       <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <h2 className="font-bold text-text">Účet</h2>

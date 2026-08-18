@@ -10,7 +10,7 @@ function dateFromToday(days: number) {
   ].join('-')
 }
 
-test('user can consume by FEFO, correct stock, discard expired stock and shop the deficit', async ({ page }) => {
+test('user can consume by FEFO, correct stock, discard expired stock and inspect history', async ({ page }) => {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`
   const email = `e2e-${suffix}@example.com`
   const password = 'FridgeCheck-e2e-123!'
@@ -130,4 +130,20 @@ test('user can consume by FEFO, correct stock, discard expired stock and shop th
 
   await expect(page.getByText('Vejce').first()).toBeVisible()
   await expect(page.getByText('za 3 dny').first()).toBeVisible()
+
+  await page.getByRole('link', { name: 'Více', exact: true }).click()
+  await expect(page).toHaveURL(/\/more$/)
+  await page.getByRole('link', { name: /Historie změn/ }).click()
+  await expect(page).toHaveURL(/\/history$/)
+  await expect(page.getByRole('heading', { name: 'Historie změn' })).toBeVisible()
+
+  const correctionEvent = page.getByRole('article', { name: 'Korekce · Vejce' })
+  await expect(correctionEvent).toContainText('+1 ks')
+  await expect(correctionEvent).toContainText('přepočítáno doma')
+
+  const discardEvent = page.getByRole('article', { name: 'Vyhození · Skyr' })
+  await expect(discardEvent).toContainText('−2 ks')
+  await expect(discardEvent).toContainText('po expiraci')
+
+  await expect(page.getByRole('article', { name: 'Spotřeba · Vejce' }).first()).toBeVisible()
 })
