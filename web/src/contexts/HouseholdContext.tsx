@@ -26,31 +26,20 @@ type HouseholdContextValue = {
 const HouseholdContext = createContext<HouseholdContextValue | null>(null)
 const STORAGE_KEY = 'fridgecheck_active_household'
 
+async function fetchHouseholds() {
+  return supabaseV2Browser()
+    .from('households')
+    .select('*')
+    .order('created_at', { ascending: true })
+}
+
 export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const [households, setHouseholds] = useState<Household[]>([])
   const [activeHouseholdId, setActiveHouseholdIdState] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const refreshHouseholds = useCallback(async (preferredId?: string) => {
-    setLoading(true)
-    setError(null)
-
-    const supabase = supabaseV2Browser()
-    const { data, error: queryError } = await supabase
-      .from('households')
-      .select('*')
-      .order('created_at', { ascending: true })
-
-    if (queryError) {
-      setHouseholds([])
-      setActiveHouseholdIdState(null)
-      setError('Domácnosti se nepodařilo načíst.')
-      setLoading(false)
-      return
-    }
-
-    const nextHouseholds = data ?? []
+  const applyHouseholds = useCallback((nextHouseholds: Household[], preferredId?: string) => {
     setHouseholds(nextHouseholds)
 
     if (nextHouseholds.length === 0) {
@@ -71,9 +60,48 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     setLoading(false)
   }, [])
 
+  const refreshHouseholds = useCallback(
+    async (preferredId?: string) => {
+      setLoading(true)
+      setError(null)
+
+      const { data, error: queryError } = await fetchHouseholds()
+
+      if (queryError) {
+        setHouseholds([])
+        setActiveHouseholdIdState(null)
+        setError('Domácnosti se nepodařilo načíst.')
+        setLoading(false)
+        return
+      }
+
+      applyHouseholds(data ?? [], preferredId)
+    },
+    [applyHouseholds]
+  )
+
   useEffect(() => {
-    void refreshHouseholds()
-  }, [refreshHouseholds])
+    let cancelled = false
+
+    void (async () => {
+      const { data, error: queryError } = await fetchHouseholds()
+      if (cancelled) return
+
+      if (queryError) {
+        setHouseholds([])
+        setActiveHouseholdIdState(null)
+        setError('Domácnosti se nepodařilo načíst.')
+        setLoading(false)
+        return
+      }
+
+      applyHouseholds(data ?? [])
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [applyHouseholds])
 
   const setActiveHouseholdId = useCallback(
     (id: string) => {
