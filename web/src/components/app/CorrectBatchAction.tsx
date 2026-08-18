@@ -46,18 +46,23 @@ export function CorrectBatchAction({
 
     setQuantity(String(recordedQuantity))
     const frame = window.requestAnimationFrame(() => quantityRef.current?.focus())
+    return () => window.cancelAnimationFrame(frame)
+  }, [open, recordedQuantity])
+
+  useEffect(() => {
+    if (!open) return
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !submitting) close()
+      if (event.key !== 'Escape' || submitting) return
+      setOpen(false)
+      setQuantity('')
+      setReason('')
+      setError(null)
     }
 
     window.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  // `close` only resets local dialog state and does not need to be an effect dependency.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, recordedQuantity, submitting])
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, submitting])
 
   const close = () => {
     if (submitting) return
