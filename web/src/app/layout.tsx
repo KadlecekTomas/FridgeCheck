@@ -1,3 +1,4 @@
+import type { Metadata, Viewport } from 'next'
 import { Inter, Roboto_Mono } from 'next/font/google'
 import '@/styles/globals.css'
 import LayoutClientWrapper from './LayoutClientWrapper'
@@ -12,7 +13,14 @@ const mono = Roboto_Mono({
   subsets: ['latin', 'latin-ext'],
 })
 
-export const metadata = {
+export const viewport: Viewport = {
+  themeColor: '#174D3A',
+  colorScheme: 'light',
+}
+
+export const metadata: Metadata = {
+  applicationName: 'HlídačJídla',
+  manifest: '/manifest.webmanifest',
   title: {
     default: 'HlídačJídla',
     template: '%s · HlídačJídla',
@@ -27,8 +35,20 @@ export const metadata = {
     'fridge tracker',
   ],
   icons: {
-    icon: '/warehouse.png',
-    shortcut: '/warehouse.png',
+    icon: [
+      { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icons/icon-512.png', type: 'image/png', sizes: '512x512' },
+    ],
+    shortcut: '/icons/icon-192.png',
+    apple: '/icons/apple-touch-icon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'HlídačJídla',
+    statusBarStyle: 'default',
+  },
+  formatDetection: {
+    telephone: false,
   },
   openGraph: {
     title: 'HlídačJídla',

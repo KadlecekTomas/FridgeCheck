@@ -8,14 +8,15 @@ Before changing this directory, read the repository root [`AGENTS.md`](../AGENTS
 
 Current application stack:
 
-- Next.js 15.5 Maintenance LTS
+- Next.js 16.3 Active LTS with Turbopack production builds
 - React 19
 - TypeScript
 - Tailwind CSS
 - Supabase Auth / PostgreSQL with RLS
 - Node.js 24 LTS
+- Playwright production-browser E2E
 
-The dependency set still contains legacy prototype packages and source that are being removed incrementally. New product code must not create new dependencies on the legacy `foods` table or old summary views.
+The active product code uses the v2 inventory model and Supabase SSR auth. Do not reintroduce dependencies on the legacy `foods` table, old summary views, or deprecated Supabase auth helpers.
 
 ## Runtime
 
@@ -49,28 +50,26 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
-npm audit --audit-level=critical
+npm audit --audit-level=high
 ```
 
-The unit suite uses Node.js 24's built-in test runner for pure expiry and inventory/replenishment rules.
+The unit suite uses Node.js 24's built-in test runner for pure expiry, FEFO, inventory, history, storage, replenishment and external-product mapping rules.
 
 ## Browser E2E
 
-The core browser test lives in [`e2e/core-flow.spec.ts`](./e2e/core-flow.spec.ts). CI runs it at a mobile viewport against a disposable local Supabase stack rebuilt solely from repository migrations.
+CI runs the complete [`e2e/`](./e2e) Playwright suite at a mobile viewport against a disposable local Supabase stack rebuilt solely from repository migrations. The browser runs against a production Next.js build, not `next dev`.
 
-The covered daily-use path is:
+The covered behavior includes registration/auth, household bootstrap, storage management, multiple batches, expiry urgency, FEFO consumption, stock correction, discard/waste, replenishment, shopping, inventory history and EAN/Open Food Facts entry with controlled external fixtures.
 
-```text
-register
-  -> create household + default Lednice
-  -> add product + first inventory batch
-  -> set stock minimum/target
-  -> see replenishment recommendation
-  -> add recommendation to shopping list
-  -> return to urgency dashboard
-```
+The suite uses local Supabase browser credentials exported by the CLI. It does not require service-role credentials or production data, and normal CI does not depend on live Open Food Facts availability.
 
-This test uses local Supabase browser credentials exported by the CLI. It does not require service-role credentials or production data.
+## PWA / home-screen installation
+
+The mobile-first web app exposes a Next.js web app manifest and dedicated 192px, 512px and Apple touch icons. It is intended to be installable from HTTPS as a standalone home-screen application.
+
+The current PWA baseline intentionally does **not** add an offline data cache or cache household API responses in a service worker. Household inventory is private and fast-moving; offline caching requires its own security, invalidation and stale-data design before it is introduced.
+
+Install guidance is exposed from `Více`. On iOS the user follows Safari's **Sdílet → Přidat na plochu** flow; other supporting browsers expose their normal install/add-to-home-screen action.
 
 ## Architecture direction
 
@@ -81,6 +80,7 @@ Current domain modules include:
 ```text
 src/domain/inventory/
 src/domain/expiry/
+src/domain/products/
 ```
 
 Future replenishment/consumption logic should follow the same pure, tested approach rather than being reimplemented in page components.
