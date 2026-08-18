@@ -92,9 +92,9 @@ jobs:
           cat /tmp/fridgecheck-next.log
           exit 1
 
-      - name: Run mobile core-flow E2E
+      - name: Run production browser E2E suite
         working-directory: web
-        run: npx playwright test e2e/core-flow.spec.ts --reporter=line
+        run: npx playwright test --reporter=line
 
       - name: Upload E2E failure artifacts
         if: failure()

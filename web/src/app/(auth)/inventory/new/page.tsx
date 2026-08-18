@@ -1,17 +1,25 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { FormEvent, useId, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, PackagePlus } from 'lucide-react'
+import { ArrowLeft, PackagePlus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
+import { normalizeBarcode, type OpenFoodFactsProduct } from '@/domain/products/openFoodFacts'
 import type { Enums } from '@/types/supabase-v2'
 
 type InventoryUnit = Enums<'inventory_unit'>
 type ExpiryType = Enums<'expiry_type'>
+
+type ProductLookupPayload = {
+  found: boolean
+  product?: OpenFoodFactsProduct
+  error?: string
+}
 
 const UNITS: { value: InventoryUnit; label: string }[] = [
   { value: 'pcs', label: 'kusy' },
@@ -29,7 +37,12 @@ export default function NewInventoryPage() {
   const [productId, setProductId] = useState('')
   const [name, setName] = useState('')
   const [brand, setBrand] = useState('')
+  const [category, setCategory] = useState('')
   const [ean, setEan] = useState('')
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [lookupLoading, setLookupLoading] = useState(false)
+  const [lookupError, setLookupError] = useState<string | null>(null)
+  const [lookupStatus, setLookupStatus] = useState<string | null>(null)
   const [quantity, setQuantity] = useState('1')
   const [unit, setUnit] = useState<InventoryUnit>('pcs')
   const [storageUnitId, setStorageUnitId] = useState('')
@@ -40,6 +53,7 @@ export default function NewInventoryPage() {
   const productSelectId = useId()
   const unitSelectId = useId()
   const unitHelpId = useId()
+  const eanInputId = useId()
 
   const selectedProduct = useMemo(
     () => dashboard.products.find((product) => product.id === productId) ?? null,
@@ -47,6 +61,51 @@ export default function NewInventoryPage() {
   )
   const resolvedStorageId = storageUnitId || dashboard.storageUnits[0]?.id || ''
   const resolvedUnit = mode === 'existing' && selectedProduct ? selectedProduct.default_unit : unit
+
+  const lookupEan = async () => {
+    const normalized = normalizeBarcode(ean)
+    if (!normalized) {
+      setLookupError('EAN musí obsahovat 8 až 14 číslic.')
+      setLookupStatus(null)
+      return
+    }
+
+    setLookupLoading(true)
+    setLookupError(null)
+    setLookupStatus(null)
+
+    try {
+      const response = await fetch(`/api/products/ean?ean=${encodeURIComponent(normalized)}`)
+      const payload = (await response.json()) as ProductLookupPayload
+
+      if (response.status === 404 || !payload.found || !payload.product) {
+        setLookupError('Produkt v Open Food Facts zatím není. Údaje můžeš vyplnit ručně.')
+        setLookupLoading(false)
+        return
+      }
+
+      if (!response.ok) {
+        setLookupError('Open Food Facts teď neodpovídá. Ruční zadání dál funguje.')
+        setLookupLoading(false)
+        return
+      }
+
+      setEan(payload.product.ean)
+      if (payload.product.name) setName(payload.product.name)
+      if (payload.product.brand) setBrand(payload.product.brand)
+      if (payload.product.category) setCategory(payload.product.category)
+      setImageUrl(payload.product.imageUrl)
+      setLookupStatus(
+        payload.product.name
+          ? 'Údaje jsou předvyplněné. Před uložením je můžeš libovolně upravit.'
+          : 'Produkt byl nalezen, ale chybí mu název. Doplň údaje ručně.'
+      )
+    } catch {
+      setLookupError('Open Food Facts teď neodpovídá. Ruční zadání dál funguje.')
+    } finally {
+      setLookupLoading(false)
+    }
+  }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -59,6 +118,12 @@ export default function NewInventoryPage() {
     }
     if (expiryType !== 'unknown' && !expiryDate) {
       setError('Pro zvolený typ expirace vyber datum.')
+      return
+    }
+
+    const normalizedEan = ean.trim() ? normalizeBarcode(ean) : null
+    if (ean.trim() && !normalizedEan) {
+      setError('EAN musí obsahovat 8 až 14 číslic.')
       return
     }
 
@@ -88,7 +153,9 @@ export default function NewInventoryPage() {
             p_quantity: quantityValue,
             p_unit: unit,
             p_brand: brand.trim() || undefined,
-            p_ean_code: ean.trim() || undefined,
+            p_ean_code: normalizedEan || undefined,
+            p_category: category.trim() || undefined,
+            p_image_url: imageUrl || undefined,
             ...expiryArgs,
           })
 
@@ -144,7 +211,7 @@ export default function NewInventoryPage() {
         </div>
         <h1 className="mt-5 text-[28px] font-bold tracking-[-0.03em] text-text">Přidat jídlo</h1>
         <p className="mt-2 text-sm leading-6 text-text-muted">
-          Minimum povinných údajů. Produkt popisuje co to je, balení kolik toho skutečně doma je a do kdy.
+          EAN může předvyplnit produkt. Balení pak říká, kolik toho doma skutečně je a do kdy.
         </p>
 
         {dashboard.products.length > 0 ? (
@@ -191,6 +258,64 @@ export default function NewInventoryPage() {
             </div>
           ) : (
             <>
+              <div className="rounded-2xl border border-primary/15 bg-primary-soft/35 p-4">
+                <label htmlFor={eanInputId} className="field-label">EAN / čárový kód</label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    id={eanInputId}
+                    className="input-field min-w-0 flex-1"
+                    value={ean}
+                    onChange={(event) => {
+                      setEan(event.target.value)
+                      setLookupError(null)
+                      setLookupStatus(null)
+                      setImageUrl(null)
+                    }}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="např. 859…"
+                    maxLength={20}
+                  />
+                  <button
+                    type="button"
+                    className="button-secondary shrink-0"
+                    onClick={() => void lookupEan()}
+                    disabled={lookupLoading || !ean.trim()}
+                  >
+                    <Search size={17} aria-hidden="true" />
+                    {lookupLoading ? 'Hledám…' : 'Načíst údaje'}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-text-muted">
+                  Urychlení, ne podmínka. Když produkt nenajdeme, pokračuj ručně.
+                </p>
+                {lookupStatus ? <p className="mt-2 text-sm font-medium text-primary">{lookupStatus}</p> : null}
+                {lookupError ? <p className="mt-2 text-sm text-warning" role="status">{lookupError}</p> : null}
+                <a
+                  href="https://world.openfoodfacts.org"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-block text-xs font-medium text-text-muted underline underline-offset-2 hover:text-text"
+                >
+                  Produktová data: Open Food Facts
+                </a>
+              </div>
+
+              {imageUrl ? (
+                <div className="flex items-center gap-4 rounded-2xl border border-border bg-canvas p-3">
+                  <Image
+                    src={imageUrl}
+                    alt={name ? `Náhled produktu ${name}` : 'Náhled produktu z Open Food Facts'}
+                    width={88}
+                    height={88}
+                    className="h-20 w-20 shrink-0 rounded-xl bg-white object-contain"
+                  />
+                  <p className="text-sm leading-6 text-text-muted">
+                    Obrázek je jen pomůcka k rozpoznání produktu. Množství a expiraci vždy zadáváš pro konkrétní balení doma.
+                  </p>
+                </div>
+              ) : null}
+
               <label className="block">
                 <span className="field-label">Název</span>
                 <input
@@ -200,7 +325,7 @@ export default function NewInventoryPage() {
                   placeholder="např. Vejce"
                   maxLength={200}
                   required
-                  autoFocus
+                  autoFocus={!ean}
                 />
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -211,16 +336,17 @@ export default function NewInventoryPage() {
                     value={brand}
                     onChange={(event) => setBrand(event.target.value)}
                     placeholder="např. Albert"
+                    maxLength={200}
                   />
                 </label>
                 <label className="block">
-                  <span className="field-label">EAN <span className="font-normal text-text-muted">volitelně</span></span>
+                  <span className="field-label">Kategorie <span className="font-normal text-text-muted">volitelně</span></span>
                   <input
                     className="input-field"
-                    value={ean}
-                    onChange={(event) => setEan(event.target.value)}
-                    inputMode="numeric"
-                    placeholder="859…"
+                    value={category}
+                    onChange={(event) => setCategory(event.target.value)}
+                    placeholder="např. Jogurty"
+                    maxLength={200}
                   />
                 </label>
               </div>
