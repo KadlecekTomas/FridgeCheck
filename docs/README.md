@@ -50,7 +50,7 @@ Read for every behavior change.
 
 ### `CI_CD.md`
 
-Defines the target merge-gating CI/CD contract.
+Defines the merge-gating CI/CD contract and records which quality gates are currently enforced.
 
 Read before changing workflows, scripts, test infrastructure, Node versions or deployment behavior.
 
@@ -65,6 +65,12 @@ Read for auth, database, API, upload, analytics and privacy work.
 Defines the final standard a change must satisfy before it can be called complete/merge-ready.
 
 Read before reporting any task as done.
+
+### `RELEASE_CHECKLIST.md`
+
+Defines the production bridge from a green `main` revision to a real hosted release: Supabase/Auth/SMTP, Vercel, domain/HTTPS, real-device smoke, security checks and rollback readiness.
+
+Use it before calling a hosted build ready for the private pilot or any broader launch.
 
 ## Important distinction
 
