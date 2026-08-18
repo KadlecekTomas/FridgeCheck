@@ -35,6 +35,18 @@ export function BarcodeScannerAction({
   const controlsRef = useRef<IScannerControls | null>(null)
   const detectedRef = useRef(onDetected)
 
+  const stopCamera = () => {
+    controlsRef.current?.stop()
+    controlsRef.current = null
+  }
+
+  const close = () => {
+    stopCamera()
+    setOpen(false)
+    setStarting(false)
+    setError(null)
+  }
+
   useEffect(() => {
     detectedRef.current = onDetected
   }, [onDetected])
@@ -43,6 +55,17 @@ export function BarcodeScannerAction({
     if (!open) return
 
     let cancelled = false
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      cancelled = true
+      controlsRef.current?.stop()
+      controlsRef.current = null
+      setOpen(false)
+      setStarting(false)
+      setError(null)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
 
     void (async () => {
       await Promise.resolve()
@@ -95,18 +118,11 @@ export function BarcodeScannerAction({
 
     return () => {
       cancelled = true
+      window.removeEventListener('keydown', handleKeyDown)
       controlsRef.current?.stop()
       controlsRef.current = null
     }
   }, [open])
-
-  const close = () => {
-    controlsRef.current?.stop()
-    controlsRef.current = null
-    setOpen(false)
-    setStarting(false)
-    setError(null)
-  }
 
   return (
     <>
