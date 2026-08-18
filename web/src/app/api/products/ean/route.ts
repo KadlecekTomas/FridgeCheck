@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { mapOpenFoodFactsResponse, normalizeBarcode } from '@/domain/products/openFoodFacts'
+import { getCurrentUserV2 } from '@/lib/auth/v2-server'
 
 const OPEN_FOOD_FACTS_FIELDS = [
   'code',
@@ -14,6 +15,14 @@ const OPEN_FOOD_FACTS_FIELDS = [
 const OPEN_FOOD_FACTS_USER_AGENT = 'HlidacJidla/0.1 (https://hlidacjidla.eu)'
 
 export async function GET(request: Request) {
+  const user = await getCurrentUserV2()
+  if (!user) {
+    return NextResponse.json(
+      { found: false, error: 'authentication_required' },
+      { status: 401 }
+    )
+  }
+
   const requestUrl = new URL(request.url)
   const barcode = normalizeBarcode(requestUrl.searchParams.get('ean') ?? '')
 
