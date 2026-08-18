@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Clock3, Home, LogOut, Plus, Warehouse } from 'lucide-react'
+import { InstallAppCard } from '@/components/app/InstallAppCard'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
@@ -131,6 +132,8 @@ export default function MorePage() {
           </span>
         </Link>
       </div>
+
+      <InstallAppCard />
 
       <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <h2 className="font-bold text-text">Účet</h2>
