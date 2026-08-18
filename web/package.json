@@ -15,30 +15,16 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@fullpage/react-fullpage": "^0.1.49",
-    "@heroicons/react": "^2.2.0",
-    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "0.12.4",
     "@supabase/supabase-js": "^2.52.1",
-    "@zxing/browser": "^0.1.5",
-    "date-fns": "^4.1.0",
-    "formik": "^2.4.6",
-    "framer-motion": "^12.23.6",
-    "fullpage.js": "^4.0.37",
-    "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.525.0",
     "next": "15.5.21",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-spinners": "^0.17.0",
-    "react-toastify": "^11.0.5",
-    "sonner": "^2.0.6",
-    "tesseract.js": "^6.0.1",
-    "yup": "^1.6.1"
+    "sonner": "^2.0.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@types/fullpage.js": "^2.9.6",
     "@types/node": "^20",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
