@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { FormEvent, useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, PackageOpen, Plus, Search, Target } from 'lucide-react'
 import { ConsumeProductAction } from '@/components/app/ConsumeProductAction'
+import { DiscardBatchAction } from '@/components/app/DiscardBatchAction'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
@@ -192,30 +193,38 @@ export default function InventoryPage() {
                           const storage = storageById.get(batch.storage_unit_id)
                           const days = batch.expiry_date ? daysUntilExpiry(batch.expiry_date) : null
                           return (
-                            <div key={batch.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
-                              <div className="min-w-0">
+                            <div key={batch.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+                              <div className="min-w-0 flex-1">
                                 <span className="font-semibold text-text">
                                   {quantity(batch.quantity, batch.unit)}
                                 </span>
                                 {storage ? <span className="text-text-muted"> · {storage.name}</span> : null}
+                                <div className="mt-1">
+                                  {days === null ? (
+                                    <span className="text-text-muted">bez data</span>
+                                  ) : (
+                                    <span
+                                      className={
+                                        days < 0 && batch.expiry_type === 'use_by'
+                                          ? 'font-semibold text-danger'
+                                          : days <= 1
+                                            ? 'font-semibold text-warning'
+                                            : 'text-text-muted'
+                                      }
+                                    >
+                                      {formatExpiryUrgency(days, batch.expiry_type)}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="shrink-0 text-right">
-                                {days === null ? (
-                                  <span className="text-text-muted">bez data</span>
-                                ) : (
-                                  <span
-                                    className={
-                                      days < 0 && batch.expiry_type === 'use_by'
-                                        ? 'font-semibold text-danger'
-                                        : days <= 1
-                                          ? 'font-semibold text-warning'
-                                          : 'text-text-muted'
-                                    }
-                                  >
-                                    {formatExpiryUrgency(days, batch.expiry_type)}
-                                  </span>
-                                )}
-                              </div>
+                              <DiscardBatchAction
+                                compact
+                                batchId={batch.id}
+                                productName={product.name}
+                                quantity={batch.quantity}
+                                unit={batch.unit}
+                                onDiscarded={dashboard.refresh}
+                              />
                             </div>
                           )
                         })}
