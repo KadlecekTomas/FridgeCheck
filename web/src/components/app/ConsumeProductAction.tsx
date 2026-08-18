@@ -36,13 +36,27 @@ export function ConsumeProductAction({
   const [error, setError] = useState<string | null>(null)
   const titleId = useId()
   const descriptionId = useId()
+  const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
+
     const frame = window.requestAnimationFrame(() => inputRef.current?.focus())
-    return () => window.cancelAnimationFrame(frame)
-  }, [open])
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !submitting) {
+        setOpen(false)
+        setQuantity('')
+        setError(null)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open, submitting])
 
   const close = () => {
     if (submitting) return
@@ -143,10 +157,13 @@ export function ConsumeProductAction({
             </p>
 
             <form onSubmit={submit} className="mt-5 space-y-4">
-              <label className="block">
-                <span className="field-label">Množství ke spotřebě</span>
+              <div>
+                <label htmlFor={inputId} className="field-label">
+                  Množství ke spotřebě
+                </label>
                 <div className="relative">
                   <input
+                    id={inputId}
                     ref={inputRef}
                     className="input-field pr-14"
                     type="number"
@@ -162,7 +179,7 @@ export function ConsumeProductAction({
                     {unit === 'pcs' ? 'ks' : unit}
                   </span>
                 </div>
-              </label>
+              </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-primary-soft/55 px-3 py-2.5 text-sm">
                 <span className="text-text-muted">Použitelně doma</span>
