@@ -1,5 +1,6 @@
 name: Prune legacy dependencies
 
+# One-shot branch generator. Delete this workflow before merge.
 on:
   push:
     branches:
