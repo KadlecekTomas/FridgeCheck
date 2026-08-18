@@ -10,7 +10,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   use: {
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL: 'http://localhost:3000',
     browserName: 'chromium',
     viewport: { width: 390, height: 844 },
     screenshot: 'only-on-failure',
