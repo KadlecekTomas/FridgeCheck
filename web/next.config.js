@@ -1,7 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['images.openfoodfacts.org'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.openfoodfacts.org',
+      },
+    ],
   },
   async redirects() {
     return [
