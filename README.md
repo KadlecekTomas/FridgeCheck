@@ -10,11 +10,26 @@ The product is designed to reduce food waste, shopping uncertainty and the menta
 
 ## Current status
 
-This repository is an existing prototype being hardened into a production-quality product.
+The mobile-first web/PWA has moved beyond the original prototype hardening phase and now has a tested v2 inventory core suitable for a **private hosted pilot once the external production environment is configured and smoke-tested**.
 
-The current codebase already contains a Next.js/Supabase web application and an Expo/React Native mobile prototype. The immediate priority is to make the mobile-first web/PWA core loop reliable, well-tested and easy to use before expanding native mobile scope.
+Current product behavior includes:
 
-Do not assume the current implementation already satisfies the target engineering standard. The repository is undergoing deliberate quality hardening.
+- Supabase auth, registration/login and PKCE password recovery,
+- household isolation enforced by RLS and hostile public-client tests,
+- storage locations,
+- Product + InventoryBatch inventory,
+- expiry/use-by/best-before behavior,
+- transactional FEFO consumption,
+- discard/waste and auditable stock corrections,
+- InventoryEvent history,
+- stock targets, replenishment and shopping,
+- EAN/Open Food Facts assisted entry,
+- cross-browser camera barcode scanner with manual fallback,
+- installable mobile-first PWA metadata/icons.
+
+The Expo/React Native prototype remains non-priority. Product validation should happen through the mobile-first web/PWA before native mobile expansion.
+
+A green repository is not the same as a live production release. Hosted Supabase Auth/SMTP, Vercel, the domain and real-device behavior still require the production procedure in [`docs/RELEASE_CHECKLIST.md`](./docs/RELEASE_CHECKLIST.md).
 
 ## Mandatory project rules
 
@@ -31,6 +46,7 @@ Then read the relevant documents in [`docs/`](./docs/README.md):
 - [CI/CD contract](./docs/CI_CD.md)
 - [Security contract](./docs/SECURITY.md)
 - [Definition of Done](./docs/DEFINITION_OF_DONE.md)
+- [Release checklist](./docs/RELEASE_CHECKLIST.md)
 - [Contributing](./CONTRIBUTING.md)
 
 ## Core product loop
@@ -51,7 +67,7 @@ shopping list
 
 The product should make this loop fast enough to use every day.
 
-## Domain model direction
+## Domain model
 
 A fundamental domain rule is:
 
@@ -59,7 +75,7 @@ A fundamental domain rule is:
 
 A product describes what an item is. A batch describes a physical amount in a household with its own quantity, storage location and expiry.
 
-The target domain also includes stock targets and inventory history so shopping recommendations and future consumption learning can be reliable.
+Stock targets and inventory history support deterministic shopping recommendations and future consumption learning without collapsing product metadata into physical stock.
 
 See [`docs/DATA_MODEL.md`](./docs/DATA_MODEL.md).
 
@@ -70,9 +86,10 @@ See [`docs/DATA_MODEL.md`](./docs/DATA_MODEL.md).
 ├── AGENTS.md
 ├── CONTRIBUTING.md
 ├── docs/
-├── web/                  # Next.js / React / TypeScript / Supabase
-├── mobile/               # Expo / React Native prototype
-└── .github/workflows/    # CI workflows (currently being hardened)
+├── supabase/             # versioned PostgreSQL migrations + SQL regression/RLS tests
+├── web/                  # Next.js 16 / React 19 / TypeScript / Supabase / PWA
+├── mobile/               # Expo / React Native prototype (non-priority)
+└── .github/workflows/    # blocking Web, Supabase and production-browser CI
 ```
 
 ## Web development
@@ -83,24 +100,36 @@ npm ci
 npm run dev
 ```
 
-The current web quality baseline runs lockfile installation, lint, explicit TypeScript type checking, the initial pure-domain unit-test suite and a production build on pull requests targeting `main`. Integration/RLS tests, coverage gates and browser E2E are still subsequent hardening stages and must not be represented as already implemented.
+Expected public environment variables are documented in [`web/.env.example`](./web/.env.example).
+
+The current automated quality baseline includes:
+
+- lockfile install,
+- ESLint,
+- TypeScript typecheck,
+- pure-domain unit tests,
+- Next.js 16 Turbopack production build,
+- HIGH-level dependency audit,
+- clean Supabase rebuild from repository migrations,
+- SQL regression/RLS tests,
+- complete mobile-viewport production Playwright suite.
+
+Coverage thresholds, explicit secret-scanning and automated proof/configuration of branch protection remain tracked engineering gaps. See [`docs/CI_CD.md`](./docs/CI_CD.md).
 
 Never interpret a successful local build as sufficient release validation.
 
-## Engineering priorities
+## Current engineering priority
 
-Current order of work:
+The immediate priority is **hosted release readiness and real daily-use validation**, not more feature breadth:
 
-1. repository hygiene and reproducibility
-2. enforceable CI on pull requests
-3. expand unit/integration test infrastructure around critical domain behavior
-4. browser E2E coverage of critical flows
-5. database/RLS verification
-6. inventory domain refactor toward Product + InventoryBatch + StockTarget + InventoryEvent
-7. core UX: what to consume, what is low, what to buy
-8. production hardening/observability
+1. configure the intended hosted Supabase/Auth/SMTP environment,
+2. create/reconnect the production Vercel project,
+3. attach `hlidacjidla.eu` over HTTPS,
+4. run the real production + iPhone/PWA/camera smoke checklist,
+5. start daily private-pilot use,
+6. fix friction found by real use before adding lower-priority features.
 
-Features with weaker near-term ROI should not distract from this sequence.
+Before broader public scale, also address the known database performance-advisor work with tested migrations.
 
 ## Quality standard
 
