@@ -59,9 +59,24 @@ The unit suite uses Node.js 24's built-in test runner for pure expiry, FEFO, inv
 
 CI runs the complete [`e2e/`](./e2e) Playwright suite at a mobile viewport against a disposable local Supabase stack rebuilt solely from repository migrations. The browser runs against a production Next.js build, not `next dev`.
 
-The covered behavior includes registration/auth, household bootstrap, storage management, multiple batches, expiry urgency, FEFO consumption, stock correction, discard/waste, replenishment, shopping, inventory history and EAN/Open Food Facts entry with controlled external fixtures.
+The covered behavior includes registration/auth, password recovery, hostile public-client household isolation, household bootstrap, storage management, multiple batches, expiry urgency, FEFO consumption, stock correction, discard/waste, replenishment, shopping, inventory history and EAN/Open Food Facts entry with controlled external fixtures.
 
 The suite uses local Supabase browser credentials exported by the CLI. It does not require service-role credentials or production data, and normal CI does not depend on live Open Food Facts availability.
+
+Local password-recovery E2E enables the Supabase CLI mail-capture service and follows the actual recovery email through the PKCE callback before changing the password. No real email is sent from CI.
+
+## Auth recovery production requirements
+
+Password recovery uses Supabase's PKCE-compatible `resetPasswordForEmail` flow. The browser requests a recovery email, `/auth/callback` exchanges the one-time auth code server-side, and `/update-password` is available only with the resulting authenticated recovery session.
+
+Before production release:
+
+- configure the hosted Supabase **Site URL** for the production origin,
+- allow the exact recovery callback URL `https://hlidacjidla.eu/auth/callback?next=/update-password`,
+- configure a production SMTP provider rather than depending on Supabase's restricted development mail sender,
+- verify one real recovery email on the production domain.
+
+Recovery request UI intentionally does not reveal whether an email address is registered.
 
 ## PWA / home-screen installation
 
@@ -89,7 +104,7 @@ See [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
 
 ## Supabase
 
-Client-side authorization checks are UX only. Household isolation is enforced by database RLS and regression-tested SQL.
+Client-side authorization checks are UX only. Household isolation is enforced by database RLS and regression-tested SQL plus a hostile public-client release test.
 
 Never expose service-role/admin credentials in browser code.
 
