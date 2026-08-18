@@ -10,7 +10,7 @@ function dateFromToday(days: number) {
   ].join('-')
 }
 
-test('user can consume by FEFO, correct stock, discard expired stock and inspect history', async ({ page }) => {
+test('user can manage storage, consume by FEFO, correct stock, discard and inspect history', async ({ page }) => {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`
   const email = `e2e-${suffix}@example.com`
   const password = 'FridgeCheck-e2e-123!'
@@ -31,6 +31,27 @@ test('user can consume by FEFO, correct stock, discard expired stock and inspect
   await page.getByRole('button', { name: 'Vytvořit domácnost' }).click()
   await expect(page.getByRole('heading', { name: 'Co dnes potřebuje pozornost' })).toBeVisible()
   await expect(page.getByText('Lednice')).toBeVisible()
+
+  await page.getByRole('link', { name: 'Více', exact: true }).click()
+  await expect(page).toHaveURL(/\/more$/)
+  await page.getByRole('link', { name: /Úložná místa/ }).click()
+  await expect(page).toHaveURL(/\/more\/storage$/)
+  await expect(page.getByRole('heading', { name: 'Úložná místa' })).toBeVisible()
+
+  await page.getByLabel('Název').fill('Spíž')
+  await page.getByLabel('Typ').selectOption('pantry')
+  await page.getByRole('button', { name: 'Přidat', exact: true }).click()
+
+  let storageCard = page.getByRole('article').filter({ hasText: 'Spíž' })
+  await expect(storageCard).toContainText('Zatím bez historie zásob')
+  await storageCard.getByRole('button', { name: 'Přejmenovat Spíž' }).click()
+  await storageCard.getByLabel('Nový název Spíž').fill('Suchá spíž')
+  await storageCard.getByRole('button', { name: 'Uložit' }).click()
+  storageCard = page.getByRole('article').filter({ hasText: 'Suchá spíž' })
+  await expect(storageCard).toBeVisible()
+
+  await page.getByRole('link', { name: 'Domů', exact: true }).click()
+  await expect(page).toHaveURL(/\/dashboard$/)
 
   await page.getByRole('link', { name: 'Přidat', exact: true }).click()
   await expect(page).toHaveURL(/\/inventory\/new$/)
@@ -106,12 +127,14 @@ test('user can consume by FEFO, correct stock, discard expired stock and inspect
   await expect(page).toHaveURL(/\/inventory\/new$/)
   await page.getByLabel('Název').fill('Skyr')
   await page.getByLabel('Množství').fill('2')
+  await page.getByLabel('Kam to patří').selectOption({ label: 'Suchá spíž' })
   await page.getByLabel('Typ data').selectOption('use_by')
   await page.getByLabel('Datum').fill(yesterdayDate)
   await page.getByRole('button', { name: 'Přidat do zásob' }).click()
 
   await expect(page).toHaveURL(/\/inventory$/)
   const skyrCard = page.getByRole('article').filter({ hasText: 'Skyr' })
+  await expect(skyrCard).toContainText('Suchá spíž')
   await expect(skyrCard).toContainText('Doma 0 ks · 1 aktivní balení')
 
   await page.getByRole('link', { name: 'Domů', exact: true }).click()
@@ -146,4 +169,12 @@ test('user can consume by FEFO, correct stock, discard expired stock and inspect
   await expect(discardEvent).toContainText('po expiraci')
 
   await expect(page.getByRole('article', { name: 'Spotřeba · Vejce' }).first()).toBeVisible()
+
+  await page.getByRole('link', { name: 'Více', exact: true }).click()
+  await page.getByRole('link', { name: /Úložná místa/ }).click()
+  await expect(page).toHaveURL(/\/more\/storage$/)
+  storageCard = page.getByRole('article').filter({ hasText: 'Suchá spíž' })
+  await expect(storageCard).toContainText('1 balení v historii')
+  await expect(storageCard.getByRole('button', { name: 'Smazat Suchá spíž' })).toBeDisabled()
+  await expect(storageCard).toContainText('Přejmenuj ho místo smazání')
 })
