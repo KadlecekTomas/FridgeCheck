@@ -10,6 +10,7 @@ import {
   Plus,
   ShoppingBasket,
 } from 'lucide-react'
+import { ConsumeProductAction } from '@/components/app/ConsumeProductAction'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
@@ -17,6 +18,7 @@ import {
   buildUrgentBatches,
   computeLowStock,
   formatExpiryUrgency,
+  isBatchUsableForStock,
   type DashboardBatch,
 } from '@/domain/inventory/dashboard'
 import { resolveExpiringDays } from '@/domain/expiry/expiry'
@@ -65,6 +67,38 @@ export default function DashboardPage() {
     () => buildUrgentBatches(domainBatches, new Date(), expiringDays).slice(0, 4),
     [domainBatches, expiringDays]
   )
+  const usableQuantityByProduct = useMemo(() => {
+    const now = new Date()
+    return new Map(
+      dashboard.products.map((product) => [
+        product.id,
+        domainBatches
+          .filter(
+            (batch) =>
+              batch.productId === product.id &&
+              batch.unit === product.default_unit &&
+              isBatchUsableForStock(batch, now)
+          )
+          .reduce((sum, batch) => sum + batch.quantity, 0),
+      ])
+    )
+  }, [dashboard.products, domainBatches])
+  const urgentConsumeBatchIds = useMemo(() => {
+    const claimedProducts = new Set<string>()
+    const actionableBatches = new Set<string>()
+    const now = new Date()
+
+    for (const batch of urgentBatches) {
+      if (claimedProducts.has(batch.productId)) continue
+      if (!isBatchUsableForStock(batch, now)) continue
+      if ((usableQuantityByProduct.get(batch.productId) ?? 0) <= 0) continue
+
+      claimedProducts.add(batch.productId)
+      actionableBatches.add(batch.id)
+    }
+
+    return actionableBatches
+  }, [urgentBatches, usableQuantityByProduct])
   const lowStock = useMemo(
     () =>
       computeLowStock(
@@ -144,9 +178,10 @@ export default function DashboardPage() {
                     const urgency = formatExpiryUrgency(batch.daysRemaining, batch.expiryType)
                     const isCritical = batch.daysRemaining < 0 && batch.expiryType === 'use_by'
                     const isWarning = batch.daysRemaining <= 1
+                    const availableQuantity = usableQuantityByProduct.get(batch.productId) ?? 0
 
                     return (
-                      <div key={batch.id} className="flex items-center gap-3 p-4">
+                      <div key={batch.id} className="flex flex-wrap items-center gap-3 p-4">
                         <div
                           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
                             isCritical
@@ -185,6 +220,16 @@ export default function DashboardPage() {
                             {batch.expiryType === 'best_before' ? ' · min. trvanlivost' : ''}
                           </p>
                         </div>
+                        {product && urgentConsumeBatchIds.has(batch.id) ? (
+                          <ConsumeProductAction
+                            compact
+                            productId={product.id}
+                            productName={product.name}
+                            unit={product.default_unit}
+                            availableQuantity={availableQuantity}
+                            onConsumed={dashboard.refresh}
+                          />
+                        ) : null}
                       </div>
                     )
                   })}
