@@ -10,7 +10,7 @@ function dateFromToday(days: number) {
   ].join('-')
 }
 
-test('user can consume by FEFO, discard expired stock and shop the resulting deficit', async ({ page }) => {
+test('user can consume by FEFO, correct stock, discard expired stock and shop the deficit', async ({ page }) => {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`
   const email = `e2e-${suffix}@example.com`
   const password = 'FridgeCheck-e2e-123!'
@@ -86,12 +86,21 @@ test('user can consume by FEFO, discard expired stock and shop the resulting def
   await expect(productCard).not.toContainText('zítra')
   await expect(productCard).toContainText('za 3 dny')
 
+  await productCard.getByRole('button', { name: 'Srovnat stav Vejce' }).click()
+  const correctionDialog = page.getByRole('dialog', { name: 'Srovnat skutečný stav' })
+  await expect(correctionDialog).toContainText('V aplikaci je 5 ks')
+  await correctionDialog.getByLabel('Skutečné množství').fill('6')
+  await correctionDialog.getByLabel('Proč stav opravuješ?').fill('přepočítáno doma')
+  await correctionDialog.getByRole('button', { name: 'Srovnat', exact: true }).click()
+  await expect(correctionDialog).not.toBeVisible()
+  await expect(productCard).toContainText('Doma 6 ks · 1 aktivní balení')
+
   await page.getByRole('link', { name: 'Nákup', exact: true }).click()
   await expect(page).toHaveURL(/\/shopping$/)
-  await expect(page.getByText('Doma 5 ks / cíl 20 ks')).toBeVisible()
-  await page.getByRole('button', { name: '15 ks' }).click()
+  await expect(page.getByText('Doma 6 ks / cíl 20 ks')).toBeVisible()
+  await page.getByRole('button', { name: '14 ks' }).click()
   await expect(page.getByRole('button', { name: 'Přidáno' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: /Vejce 15 ks/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Vejce 14 ks/ })).toBeVisible()
 
   await page.getByRole('link', { name: 'Přidat', exact: true }).click()
   await expect(page).toHaveURL(/\/inventory\/new$/)

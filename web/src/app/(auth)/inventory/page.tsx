@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { FormEvent, useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, PackageOpen, Plus, Search, Target } from 'lucide-react'
 import { ConsumeProductAction } from '@/components/app/ConsumeProductAction'
+import { CorrectBatchAction } from '@/components/app/CorrectBatchAction'
 import { DiscardBatchAction } from '@/components/app/DiscardBatchAction'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
@@ -217,14 +218,24 @@ export default function InventoryPage() {
                                   )}
                                 </div>
                               </div>
-                              <DiscardBatchAction
-                                compact
-                                batchId={batch.id}
-                                productName={product.name}
-                                quantity={batch.quantity}
-                                unit={batch.unit}
-                                onDiscarded={dashboard.refresh}
-                              />
+                              <div className="flex flex-wrap items-center justify-end gap-1">
+                                <CorrectBatchAction
+                                  compact
+                                  batchId={batch.id}
+                                  productName={product.name}
+                                  quantity={batch.quantity}
+                                  unit={batch.unit}
+                                  onCorrected={dashboard.refresh}
+                                />
+                                <DiscardBatchAction
+                                  compact
+                                  batchId={batch.id}
+                                  productName={product.name}
+                                  quantity={batch.quantity}
+                                  unit={batch.unit}
+                                  onDiscarded={dashboard.refresh}
+                                />
+                              </div>
                             </div>
                           )
                         })}
