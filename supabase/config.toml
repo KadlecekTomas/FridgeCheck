@@ -14,8 +14,8 @@ major_version = 17
 
 [auth]
 enabled = true
-site_url = "http://127.0.0.1:3000"
-additional_redirect_urls = ["http://127.0.0.1:3000/auth/callback?next=/update-password"]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback?next=/update-password"]
 enable_signup = true
 
 [auth.email]
@@ -25,6 +25,8 @@ enable_confirmations = false
 [studio]
 enabled = false
 
+# Keep the legacy section name while Supabase hosted config parsing still rejects
+# the newer [local_smtp] key. Current CLI accepts this locally with a warning.
 [inbucket]
 enabled = true
 port = 54324
