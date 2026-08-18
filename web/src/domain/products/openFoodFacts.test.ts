@@ -94,4 +94,26 @@ describe('Open Food Facts product mapping', () => {
       }
     )
   })
+
+  it('drops malformed image URLs instead of leaking them into the product contract', () => {
+    assert.deepEqual(
+      mapOpenFoodFactsResponse(
+        {
+          status: 1,
+          product: {
+            product_name: 'Safe name',
+            image_front_url: 'not a valid absolute URL',
+          },
+        },
+        '12345678'
+      ),
+      {
+        ean: '12345678',
+        name: 'Safe name',
+        brand: '',
+        category: '',
+        imageUrl: null,
+      }
+    )
+  })
 })
