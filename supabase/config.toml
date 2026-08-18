@@ -15,6 +15,7 @@ major_version = 17
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000/auth/callback?next=/update-password"]
 enable_signup = true
 
 [auth.email]
@@ -25,4 +26,7 @@ enable_confirmations = false
 enabled = false
 
 [inbucket]
-enabled = false
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
