@@ -10,7 +10,7 @@ function dateFromToday(days: number) {
   ].join('-')
 }
 
-test('user can register, consume stock by FEFO and shop the resulting deficit', async ({ page }) => {
+test('user can register, consume urgent stock by FEFO and shop the resulting deficit', async ({ page }) => {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`
   const email = `e2e-${suffix}@example.com`
   const password = 'FridgeCheck-e2e-123!'
@@ -65,14 +65,22 @@ test('user can register, consume stock by FEFO and shop the resulting deficit', 
   await productCard.getByRole('button', { name: 'Uložit' }).click()
   await expect(productCard).toContainText('Minimum 12 ks · cíl 20 ks')
 
-  await productCard.getByRole('button', { name: 'Spotřebovat Vejce' }).click()
+  await page.getByRole('link', { name: 'Domů', exact: true }).click()
+  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page.getByRole('heading', { name: 'Sněz nejdřív' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Spotřebovat Vejce' })).toHaveCount(1)
+  await page.getByRole('button', { name: 'Spotřebovat Vejce' }).click()
+
   const consumeDialog = page.getByRole('dialog', { name: 'Kolik jsi spotřeboval?' })
   await expect(consumeDialog).toContainText('Použitelně doma')
   await expect(consumeDialog).toContainText('12 ks')
-  await consumeDialog.getByLabel('Množství ke spotřebě').fill('7')
+  await consumeDialog.getByLabel('Množství ke spotřebě', { exact: true }).fill('7')
   await consumeDialog.getByRole('button', { name: 'Potvrdit' }).click()
-
   await expect(consumeDialog).not.toBeVisible()
+
+  await page.getByRole('link', { name: 'Zásoby', exact: true }).click()
+  await expect(page).toHaveURL(/\/inventory$/)
+  productCard = page.getByRole('article').filter({ hasText: 'Vejce' })
   await expect(productCard).toContainText('Doma 5 ks · 1 aktivní balení')
   await expect(productCard).not.toContainText('zítra')
   await expect(productCard).toContainText('za 3 dny')
