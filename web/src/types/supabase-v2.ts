@@ -326,6 +326,10 @@ export type Database = {
         }
         Returns: string
       }
+      consume_product_fefo: {
+        Args: { p_product_id: string; p_quantity: number }
+        Returns: number
+      }
       create_household: {
         Args: { household_name: string }
         Returns: string
