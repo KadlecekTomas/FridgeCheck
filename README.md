@@ -89,7 +89,7 @@ See [`docs/DATA_MODEL.md`](./docs/DATA_MODEL.md).
 ├── supabase/             # versioned PostgreSQL migrations + SQL regression/RLS tests
 ├── web/                  # Next.js 16 / React 19 / TypeScript / Supabase / PWA
 ├── mobile/               # Expo / React Native prototype (non-priority)
-└── .github/workflows/    # blocking Web, Supabase and production-browser CI
+└── .github/workflows/    # blocking Web, Supabase, browser and security CI
 ```
 
 ## Web development
@@ -108,13 +108,17 @@ The current automated quality baseline includes:
 - ESLint,
 - TypeScript typecheck,
 - pure-domain unit tests,
+- blocking critical-domain coverage thresholds of **100% lines / 100% functions / 98% branches**,
 - Next.js 16 Turbopack production build,
 - HIGH-level dependency audit,
+- repository-wide Gitleaks secret scanning,
 - clean Supabase rebuild from repository migrations,
 - SQL regression/RLS tests,
 - complete mobile-viewport production Playwright suite.
 
-Coverage thresholds, explicit secret-scanning and automated proof/configuration of branch protection remain tracked engineering gaps. See [`docs/CI_CD.md`](./docs/CI_CD.md).
+The coverage gate was set from measured production-domain coverage rather than an arbitrary target. The tested baseline is currently 100% lines / 98.73% branches / 100% functions.
+
+Automated proof/configuration of branch protection and the hosted production deployment/smoke remain the significant unproven engineering/release gaps. See [`docs/CI_CD.md`](./docs/CI_CD.md) and [`docs/RELEASE_CHECKLIST.md`](./docs/RELEASE_CHECKLIST.md).
 
 Never interpret a successful local build as sufficient release validation.
 
@@ -129,7 +133,7 @@ The immediate priority is **hosted release readiness and real daily-use validati
 5. start daily private-pilot use,
 6. fix friction found by real use before adding lower-priority features.
 
-Before broader public scale, also address the known database performance-advisor work with tested migrations.
+The previously tracked Supabase missing-FK-index and RLS auth init-plan performance advisories have been addressed through a tested versioned migration while preserving authorization regression coverage.
 
 ## Quality standard
 
