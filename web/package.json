@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "gen:types": "supabase gen types typescript --local > src/types/supabase.ts",
+    "gen:types": "supabase gen types typescript --local > src/types/supabase-v2.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --config eslint.config.mjs --ext .ts,.tsx,.js",
