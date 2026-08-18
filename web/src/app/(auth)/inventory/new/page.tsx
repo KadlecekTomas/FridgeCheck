@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useId, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, PackagePlus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -37,6 +37,9 @@ export default function NewInventoryPage() {
   const [expiryDate, setExpiryDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const productSelectId = useId()
+  const unitSelectId = useId()
+  const unitHelpId = useId()
 
   const selectedProduct = useMemo(
     () => dashboard.products.find((product) => product.id === productId) ?? null,
@@ -169,9 +172,10 @@ export default function NewInventoryPage() {
 
         <form onSubmit={submit} className="mt-6 space-y-5">
           {mode === 'existing' && dashboard.products.length > 0 ? (
-            <label className="block">
-              <span className="field-label">Produkt</span>
+            <div>
+              <label htmlFor={productSelectId} className="field-label">Produkt</label>
               <select
+                id={productSelectId}
                 className="input-field"
                 value={productId}
                 onChange={(event) => setProductId(event.target.value)}
@@ -184,7 +188,7 @@ export default function NewInventoryPage() {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
           ) : (
             <>
               <label className="block">
@@ -236,24 +240,26 @@ export default function NewInventoryPage() {
                 required
               />
             </label>
-            <label className="block">
-              <span className="field-label">Jednotka</span>
+            <div>
+              <label htmlFor={unitSelectId} className="field-label">Jednotka</label>
               <select
+                id={unitSelectId}
                 className="input-field"
                 value={resolvedUnit}
                 onChange={(event) => setUnit(event.target.value as InventoryUnit)}
                 disabled={mode === 'existing'}
+                aria-describedby={mode === 'existing' ? unitHelpId : undefined}
               >
                 {UNITS.map((item) => (
                   <option key={item.value} value={item.value}>{item.label}</option>
                 ))}
               </select>
               {mode === 'existing' ? (
-                <span className="mt-1.5 block text-xs text-text-muted">
+                <span id={unitHelpId} className="mt-1.5 block text-xs text-text-muted">
                   Další balení drží stejnou jednotku jako produkt. Převody budeme dělat jen explicitně.
                 </span>
               ) : null}
-            </label>
+            </div>
           </div>
 
           <label className="block">

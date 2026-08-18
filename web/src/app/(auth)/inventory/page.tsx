@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { FormEvent, useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, PackageOpen, Plus, Search, Target } from 'lucide-react'
+import { ConsumeProductAction } from '@/components/app/ConsumeProductAction'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
@@ -144,16 +145,25 @@ export default function InventoryPage() {
                       </p>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    className="button-secondary shrink-0"
-                    onClick={() => setTargetProductId(editorOpen ? null : product.id)}
-                    aria-expanded={editorOpen}
-                  >
-                    <Target size={17} aria-hidden="true" />
-                    {target ? 'Upravit cíl' : 'Nastavit cíl'}
-                    {editorOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
+                  <div className="flex flex-wrap gap-2 sm:justify-end">
+                    <ConsumeProductAction
+                      productId={product.id}
+                      productName={product.name}
+                      unit={product.default_unit}
+                      availableQuantity={currentQuantity}
+                      onConsumed={dashboard.refresh}
+                    />
+                    <button
+                      type="button"
+                      className="button-secondary shrink-0"
+                      onClick={() => setTargetProductId(editorOpen ? null : product.id)}
+                      aria-expanded={editorOpen}
+                    >
+                      <Target size={17} aria-hidden="true" />
+                      {target ? 'Upravit cíl' : 'Nastavit cíl'}
+                      {editorOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                  </div>
                 </div>
 
                 {editorOpen ? (
