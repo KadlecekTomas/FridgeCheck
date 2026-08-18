@@ -40,6 +40,25 @@ describe('Open Food Facts product mapping', () => {
     )
   })
 
+  it('bounds untrusted text before it reaches the form/database contract', () => {
+    const mapped = mapOpenFoodFactsResponse(
+      {
+        status: 1,
+        product: {
+          product_name: 'n'.repeat(260),
+          brands: `${'b'.repeat(260)},ignored`,
+          categories: `${'c'.repeat(260)},ignored`,
+        },
+      },
+      '12345678'
+    )
+
+    assert.ok(mapped)
+    assert.equal(mapped.name.length, 200)
+    assert.equal(mapped.brand.length, 200)
+    assert.equal(mapped.category.length, 200)
+  })
+
   it('returns a found product even when optional metadata is missing', () => {
     assert.deepEqual(
       mapOpenFoodFactsResponse({ status: 1, product: {} }, '12345678'),
