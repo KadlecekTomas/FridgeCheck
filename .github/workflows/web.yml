@@ -89,6 +89,7 @@ jobs:
         run: |
           npm install --save-exact next@16.3.0
           npm install --save-dev --save-exact eslint-config-next@16.3.0
+          npm uninstall --save-dev @eslint/eslintrc
 
       - name: Validate Next 16 tree
         working-directory: web
