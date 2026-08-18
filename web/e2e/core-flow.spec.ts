@@ -10,10 +10,11 @@ function dateFromToday(days: number) {
   ].join('-')
 }
 
-test('user can register, consume urgent stock by FEFO and shop the resulting deficit', async ({ page }) => {
+test('user can consume by FEFO, discard expired stock and shop the resulting deficit', async ({ page }) => {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`
   const email = `e2e-${suffix}@example.com`
   const password = 'FridgeCheck-e2e-123!'
+  const yesterdayDate = dateFromToday(-1)
   const tomorrowDate = dateFromToday(1)
   const laterDate = dateFromToday(3)
 
@@ -92,9 +93,32 @@ test('user can register, consume urgent stock by FEFO and shop the resulting def
   await expect(page.getByRole('button', { name: 'Přidáno' })).toBeDisabled()
   await expect(page.getByRole('button', { name: /Vejce 15 ks/ })).toBeVisible()
 
+  await page.getByRole('link', { name: 'Přidat', exact: true }).click()
+  await expect(page).toHaveURL(/\/inventory\/new$/)
+  await page.getByLabel('Název').fill('Skyr')
+  await page.getByLabel('Množství').fill('2')
+  await page.getByLabel('Typ data').selectOption('use_by')
+  await page.getByLabel('Datum').fill(yesterdayDate)
+  await page.getByRole('button', { name: 'Přidat do zásob' }).click()
+
+  await expect(page).toHaveURL(/\/inventory$/)
+  const skyrCard = page.getByRole('article').filter({ hasText: 'Skyr' })
+  await expect(skyrCard).toContainText('Doma 0 ks · 1 aktivní balení')
+
   await page.getByRole('link', { name: 'Domů', exact: true }).click()
   await expect(page).toHaveURL(/\/dashboard$/)
-  await expect(page.getByRole('heading', { name: 'Sněz nejdřív' })).toBeVisible()
+  await expect(page.getByText('Skyr')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Spotřebovat Skyr' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Vyhodit Skyr' })).toHaveCount(1)
+  await page.getByRole('button', { name: 'Vyhodit Skyr' }).click()
+
+  const discardDialog = page.getByRole('dialog', { name: 'Kolik vyhazuješ?' })
+  await discardDialog.getByRole('button', { name: /Všechno · 2 ks/ }).click()
+  await discardDialog.getByLabel('Důvod').fill('po expiraci')
+  await discardDialog.getByRole('button', { name: 'Vyhodit', exact: true }).click()
+  await expect(discardDialog).not.toBeVisible()
+  await expect(page.getByText('Skyr')).toHaveCount(0)
+
   await expect(page.getByText('Vejce').first()).toBeVisible()
   await expect(page.getByText('za 3 dny').first()).toBeVisible()
 })
