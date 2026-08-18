@@ -44,10 +44,9 @@ export function CorrectBatchAction({
   useEffect(() => {
     if (!open) return
 
-    setQuantity(String(recordedQuantity))
     const frame = window.requestAnimationFrame(() => quantityRef.current?.focus())
     return () => window.cancelAnimationFrame(frame)
-  }, [open, recordedQuantity])
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -141,7 +140,12 @@ export function CorrectBatchAction({
             ? 'inline-flex min-h-9 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             : 'button-secondary'
         }
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setQuantity(String(recordedQuantity))
+          setReason('')
+          setError(null)
+          setOpen(true)
+        }}
         disabled={recordedQuantity <= 0}
         aria-label={`Srovnat stav ${productName}`}
       >
