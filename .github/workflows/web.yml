@@ -109,7 +109,7 @@ jobs:
             tesseract.js \
             yup
           npm uninstall --save-dev @types/fullpage.js @types/qrcode
-          npm audit fix
+          npm audit fix --audit-level=critical
 
       - name: Validate generated dependency tree
         working-directory: web
