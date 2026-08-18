@@ -12,18 +12,20 @@ function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function nonEmptyString(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : null
+function boundedString(value: unknown, maxLength: number) {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed.slice(0, maxLength) : null
 }
 
-function firstListItem(value: unknown) {
-  const text = nonEmptyString(value)
+function firstListItem(value: unknown, maxLength: number) {
+  const text = boundedString(value, 1000)
   if (!text) return ''
-  return text.split(',')[0]?.trim() ?? ''
+  return (text.split(',')[0]?.trim() ?? '').slice(0, maxLength)
 }
 
 function safeOpenFoodFactsImage(value: unknown) {
-  const raw = nonEmptyString(value)
+  const raw = boundedString(value, 2048)
   if (!raw) return null
 
   try {
@@ -47,9 +49,10 @@ export function mapOpenFoodFactsResponse(
   if (!isRecord(input) || input.status !== 1 || !isRecord(input.product)) return null
 
   const product = input.product
-  const name = nonEmptyString(product.product_name_cs) ?? nonEmptyString(product.product_name) ?? ''
-  const brand = firstListItem(product.brands)
-  const category = firstListItem(product.categories)
+  const name =
+    boundedString(product.product_name_cs, 200) ?? boundedString(product.product_name, 200) ?? ''
+  const brand = firstListItem(product.brands, 200)
+  const category = firstListItem(product.categories, 200)
   const imageUrl =
     safeOpenFoodFactsImage(product.image_front_url) ?? safeOpenFoodFactsImage(product.image_url)
 
