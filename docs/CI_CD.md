@@ -8,7 +8,7 @@ Every pull request that can affect production behavior must be validated automat
 
 ## Current implementation state
 
-The repository now enforces three complementary automated pipelines according to the paths changed.
+The repository now enforces four complementary automated pipelines according to the paths changed.
 
 ### Web CI
 
@@ -18,8 +18,12 @@ On relevant pull requests targeting `main` and pushes to `main`, Web CI enforces
 - ESLint,
 - explicit TypeScript type checking,
 - the pure-domain Node.js unit-test suite,
+- native Node.js coverage over production files under `web/src/domain/**`,
+- blocking critical-domain thresholds of **100% lines, 100% functions and 98% branches**,
 - Next.js 16 Turbopack production build,
 - dependency audit failing on HIGH-or-higher advisories.
+
+The coverage thresholds were not invented before measurement. The first aggregate production-domain baseline was 96.30% lines / 93.71% branches / 97.37% functions. Meaningful uncovered edge cases were then tested and one unreachable branch was removed. The resulting measured baseline is 100% lines / 98.73% branches / 100% functions, which supports the committed blocking thresholds above.
 
 ### Supabase CI
 
@@ -47,14 +51,26 @@ The browser workflow runs the complete Playwright suite rather than a hard-coded
 
 Current browser coverage includes auth, password recovery through a real locally captured email/PKCE flow, hostile public-client household isolation, household/storage bootstrap, inventory batches, expiry, FEFO consumption, correction, discard, history, replenishment/shopping, EAN/Open Food Facts integration, camera fallback and PWA metadata.
 
+### Secret Scan
+
+A repository-wide Gitleaks Action v3 workflow runs on pull requests targeting `main`, pushes to `main` and manual dispatch.
+
+It:
+
+- checks out full Git history so removed secrets are not hidden by shallow checkout,
+- uses the Node-24-compatible Gitleaks Action v3 line,
+- runs with read-only repository/pull-request permissions,
+- disables PR comments and SARIF artifact upload so scanning does not require write permissions,
+- does not require a Gitleaks license for this personal-account repository.
+
+A secret finding must be investigated. A real leaked secret must be rotated; deleting it in a later commit is not sufficient. False-positive allowlisting, if ever necessary, must be narrow and documented rather than global.
+
 ### Remaining target gaps
 
-Do not overstate the current implementation. The following target items are not yet proven as permanent repository gates:
+Do not overstate the current implementation. The following items are still not proven as permanent repository/release guarantees:
 
-- an explicit coverage threshold for critical domain modules,
-- a dedicated repository secret-scanning gate beyond platform/default protections,
 - branch-protection settings requiring the checks above; previous automation access was insufficient to prove or configure repository branch protection,
-- hosted production deployment + smoke verification.
+- hosted production deployment + real-domain/device smoke verification.
 
 Those gaps must be tracked/fixed deliberately rather than represented as already enforced.
 
@@ -66,11 +82,11 @@ CI must run on:
 - pushes to `main`,
 - relevant workflow/config changes.
 
-Path filtering may be used for efficiency only if it cannot skip checks required by a change.
+Path filtering may be used for efficiency only if it cannot skip checks required by a change. Repository-wide security scanning intentionally does not use web-only path filtering.
 
 ## Web quality pipeline
 
-The desired web quality pipeline includes:
+The enforced/target web quality pipeline includes:
 
 1. checkout,
 2. install dependencies with lockfile enforcement (`npm ci`),
@@ -80,7 +96,7 @@ The desired web quality pipeline includes:
 6. TypeScript type check,
 7. unit tests,
 8. integration/database tests when relevant,
-9. coverage gate for critical domain code,
+9. blocking coverage gate for critical domain code,
 10. production build,
 11. E2E tests,
 12. security/dependency checks appropriate to the stack.
@@ -105,12 +121,26 @@ Never solve a red pipeline by:
 
 - commenting out a test,
 - marking a meaningful test as skipped,
-- removing a lint/typecheck rule without technical justification,
+- removing a lint/typecheck/coverage/security rule without technical justification,
 - changing a required job to non-blocking solely to unblock merge,
 - adding unconditional retries to hide flakiness,
 - catching and ignoring test failures.
 
 Fix the underlying problem.
+
+## Coverage in CI
+
+Coverage applies to production TypeScript under `web/src/domain/**`; test files themselves are excluded from the measured set.
+
+The current blocking aggregate thresholds are:
+
+- lines: 100%,
+- functions: 100%,
+- branches: 98%.
+
+Coverage is a regression guard for critical business logic, not a license to write assertion-free tests or chase meaningless generated branches. A legitimate new domain branch should receive a meaningful test. If instrumentation creates a truly unreachable branch, remove/simplify dead code where appropriate rather than lowering the threshold by default.
+
+The project does not require 100% coverage for UI/framework glue code.
 
 ## E2E in CI
 
@@ -143,13 +173,17 @@ Repository migrations are the schema source of truth. Dashboard-only DDL drift i
 
 ## Security checks
 
-The current web pipeline blocks HIGH-or-higher npm advisories.
+The current pipeline blocks HIGH-or-higher npm advisories and runs explicit repository-wide Gitleaks scanning.
 
 Database authorization is additionally protected by SQL RLS regression tests and a hostile public-client browser-suite test that proves a second authenticated user cannot read or mutate another household.
 
-The pipeline should continue to add pragmatic security gates where they provide high-confidence signal, including explicit secret scanning.
+Do not blindly suppress high-confidence findings. If secret scanning reports a credential:
 
-Do not blindly fail the build on noisy scanners without a triage policy, but do not silently ignore high-confidence findings.
+1. determine whether it is real,
+2. rotate/revoke it if real,
+3. remove it from the active tree,
+4. assess whether Git history must be rewritten,
+5. only use a narrow documented allowlist for a proven false positive.
 
 ## Branch protection target
 
@@ -228,9 +262,11 @@ Example:
 - lint: passed,
 - typecheck: passed,
 - unit: passed,
+- critical-domain coverage: passed,
 - database/RLS: passed when relevant,
 - build: passed,
 - E2E: passed,
-- dependency audit: passed.
+- dependency audit: passed,
+- secret scan: passed.
 
 If a check does not exist yet, was not relevant, or could not run, say so explicitly. Never imply a target gate is already enforced when it is not.

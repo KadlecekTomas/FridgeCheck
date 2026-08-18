@@ -46,6 +46,19 @@ describe('FEFO consumption allocation', () => {
     assert.deepEqual(ordered.map((item) => item.id), ['use-by', 'best-before'])
   })
 
+  it('orders equal undated unknown batches deterministically by id', () => {
+    const ordered = orderBatchesForFefo(
+      [
+        batch({ id: 'batch-z', expiryDate: null, expiryType: 'unknown' }),
+        batch({ id: 'batch-a', expiryDate: null, expiryType: 'unknown' }),
+      ],
+      'pcs',
+      now
+    )
+
+    assert.deepEqual(ordered.map((item) => item.id), ['batch-a', 'batch-z'])
+  })
+
   it('excludes expired use-by stock but keeps past best-before stock usable', () => {
     const ordered = orderBatchesForFefo(
       [

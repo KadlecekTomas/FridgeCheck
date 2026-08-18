@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint . --config eslint.config.mjs --ext .ts,.tsx,.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --test"
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/domain/**/*.ts' --test-coverage-exclude='src/domain/**/*.test.ts' --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=98"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.4",

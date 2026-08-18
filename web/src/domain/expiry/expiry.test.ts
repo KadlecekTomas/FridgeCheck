@@ -55,6 +55,10 @@ test('invalid calendar dates fail instead of being silently normalized', () => {
   assert.throws(() => classifyExpiryDate('17.08.2026', 3), RangeError)
 })
 
+test('invalid current dates are rejected before calendar arithmetic', () => {
+  assert.throws(() => daysUntilExpiry('2026-08-17', new Date(Number.NaN)), /Current date must be valid/)
+})
+
 test('invalid expiring-days configuration falls back deterministically', () => {
   assert.equal(resolveExpiringDays(undefined), 3)
   assert.equal(resolveExpiringDays(''), 3)
@@ -62,6 +66,11 @@ test('invalid expiring-days configuration falls back deterministically', () => {
   assert.equal(resolveExpiringDays('-1'), 3)
   assert.equal(resolveExpiringDays('3.5'), 3)
   assert.equal(resolveExpiringDays('not-a-number'), 3)
+})
+
+test('invalid fallback configuration is rejected instead of hiding configuration mistakes', () => {
+  assert.throws(() => resolveExpiringDays(undefined, -1), /fallback must be a non-negative integer/)
+  assert.throws(() => resolveExpiringDays(undefined, 1.5), /fallback must be a non-negative integer/)
 })
 
 test('invalid thresholds are rejected by the domain classifier', () => {

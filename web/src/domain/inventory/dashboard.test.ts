@@ -46,6 +46,24 @@ describe('dashboard inventory rules', () => {
     )
   })
 
+  it('orders equally urgent batches deterministically by id', () => {
+    const result = buildUrgentBatches(
+      [
+        batch({ id: 'batch-z', expiryDate: '2026-08-19' }),
+        batch({ id: 'batch-a', expiryDate: '2026-08-19' }),
+      ],
+      now,
+      3
+    )
+
+    assert.deepEqual(result.map((item) => item.id), ['batch-a', 'batch-z'])
+  })
+
+  it('rejects invalid urgency horizons', () => {
+    assert.throws(() => buildUrgentBatches([], now, -1), /horizonDays must be a non-negative integer/)
+    assert.throws(() => buildUrgentBatches([], now, 1.5), /horizonDays must be a non-negative integer/)
+  })
+
   it('does not surface depleted or zero-quantity batches as urgent', () => {
     const result = buildUrgentBatches(
       [
@@ -109,6 +127,27 @@ describe('dashboard inventory rules', () => {
         currentQuantity: 3,
         recommendedQuantity: 7,
       },
+    ])
+  })
+
+  it('sorts low stock by relative depletion and product id for equal ratios', () => {
+    const result = computeLowStock(
+      [
+        { productId: 'z-product', minimumQuantity: 5, targetQuantity: 10, unit: 'pcs' },
+        { productId: 'a-product', minimumQuantity: 5, targetQuantity: 10, unit: 'pcs' },
+        { productId: 'empty-product', minimumQuantity: 5, targetQuantity: 10, unit: 'pcs' },
+      ],
+      [
+        batch({ id: 'z-stock', productId: 'z-product', quantity: 5 }),
+        batch({ id: 'a-stock', productId: 'a-product', quantity: 5 }),
+      ],
+      now
+    )
+
+    assert.deepEqual(result.map((item) => item.productId), [
+      'empty-product',
+      'a-product',
+      'z-product',
     ])
   })
 

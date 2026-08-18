@@ -92,8 +92,10 @@ export function computeLowStock(
         item.currentQuantity <= item.minimumQuantity && item.recommendedQuantity > 0
     )
     .sort((a, b) => {
-      const aRatio = a.targetQuantity === 0 ? 1 : a.currentQuantity / a.targetQuantity
-      const bRatio = b.targetQuantity === 0 ? 1 : b.currentQuantity / b.targetQuantity
+      // Items that survive the filter above necessarily have targetQuantity > 0:
+      // recommendedQuantity > 0 implies targetQuantity > currentQuantity >= 0.
+      const aRatio = a.currentQuantity / a.targetQuantity
+      const bRatio = b.currentQuantity / b.targetQuantity
       if (aRatio !== bRatio) return aRatio - bRatio
       return a.productId.localeCompare(b.productId)
     })
