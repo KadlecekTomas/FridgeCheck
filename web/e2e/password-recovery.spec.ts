@@ -62,7 +62,7 @@ test('user can recover a forgotten password through the real Supabase email flow
   await page.getByLabel('E-mail').fill(email)
   await page.getByLabel('Heslo', { exact: true }).fill(oldPassword)
   await page.getByRole('button', { name: 'Přihlásit se' }).click()
-  await expect(page.getByRole('alert')).toContainText('Přihlášení se nepodařilo')
+  await expect(page.getByText('Přihlášení se nepodařilo.', { exact: false })).toBeVisible()
 
   await page.getByLabel('Heslo', { exact: true }).fill(newPassword)
   await page.getByRole('button', { name: 'Přihlásit se' }).click()
