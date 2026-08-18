@@ -24,6 +24,7 @@ async function fetchInitialHistory(householdId: string) {
       .select('*')
       .eq('household_id', householdId)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range(0, PAGE_SIZE - 1),
     supabase
       .from('products')
@@ -87,6 +88,7 @@ export function useInventoryHistory(householdId: string | null) {
       .select('*')
       .eq('household_id', householdId)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range(from, from + PAGE_SIZE - 1)
 
     if (queryError) {
