@@ -112,9 +112,17 @@ export default function LoginPage() {
             </label>
 
             <div className="block">
-              <label htmlFor="login-password" className="field-label">
-                Heslo
-              </label>
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <label htmlFor="login-password" className="field-label mb-0">
+                  Heslo
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  Zapomenuté heslo?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   id="login-password"
@@ -131,7 +139,7 @@ export default function LoginPage() {
                   className="absolute right-1.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl text-text-muted hover:bg-surface-muted hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   aria-label={showPassword ? 'Skrýt heslo' : 'Zobrazit heslo'}
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                 </button>
               </div>
             </div>
