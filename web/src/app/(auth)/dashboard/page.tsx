@@ -11,6 +11,7 @@ import {
   ShoppingBasket,
 } from 'lucide-react'
 import { ConsumeProductAction } from '@/components/app/ConsumeProductAction'
+import { DiscardBatchAction } from '@/components/app/DiscardBatchAction'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
@@ -220,7 +221,16 @@ export default function DashboardPage() {
                             {batch.expiryType === 'best_before' ? ' · min. trvanlivost' : ''}
                           </p>
                         </div>
-                        {product && urgentConsumeBatchIds.has(batch.id) ? (
+                        {isCritical && product ? (
+                          <DiscardBatchAction
+                            compact
+                            batchId={batch.id}
+                            productName={product.name}
+                            quantity={batch.quantity}
+                            unit={batch.unit}
+                            onDiscarded={dashboard.refresh}
+                          />
+                        ) : product && urgentConsumeBatchIds.has(batch.id) ? (
                           <ConsumeProductAction
                             compact
                             productId={product.id}

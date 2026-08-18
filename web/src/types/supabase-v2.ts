@@ -351,6 +351,10 @@ export type Database = {
         }
         Returns: string
       }
+      discard_inventory_batch: {
+        Args: { p_batch_id: string; p_quantity: number; p_reason?: string }
+        Returns: number
+      }
     }
     Enums: {
       batch_status: "active" | "depleted" | "discarded"
