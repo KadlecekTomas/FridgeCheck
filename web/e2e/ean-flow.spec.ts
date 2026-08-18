@@ -1,10 +1,13 @@
 import { expect, test } from '@playwright/test'
 
-test('user can prefill a product from EAN without depending on live Open Food Facts', async ({ page }) => {
+test('EAN proxy requires auth and product prefill works without live Open Food Facts', async ({ page }) => {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`
   const email = `ean-e2e-${suffix}@example.com`
   const password = 'FridgeCheck-e2e-123!'
   const ean = '8591234567890'
+
+  const anonymousLookup = await page.request.get(`/api/products/ean?ean=${ean}`)
+  expect(anonymousLookup.status()).toBe(401)
 
   await page.route(`**/api/products/ean?ean=${ean}`, async (route) => {
     await route.fulfill({
