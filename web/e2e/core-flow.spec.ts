@@ -117,7 +117,7 @@ test('user can consume by FEFO, discard expired stock and shop the resulting def
   await discardDialog.getByLabel('Důvod').fill('po expiraci')
   await discardDialog.getByRole('button', { name: 'Vyhodit', exact: true }).click()
   await expect(discardDialog).not.toBeVisible()
-  await expect(page.getByText('Skyr')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Vyhodit Skyr' })).toHaveCount(0)
 
   await expect(page.getByText('Vejce').first()).toBeVisible()
   await expect(page.getByText('za 3 dny').first()).toBeVisible()
