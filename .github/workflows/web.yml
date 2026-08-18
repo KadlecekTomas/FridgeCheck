@@ -55,6 +55,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Critical-domain coverage baseline
+        run: npm run test:coverage
+
       - name: Production build
         run: npm run build
 
