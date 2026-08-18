@@ -6,6 +6,7 @@ import { FormEvent, useId, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, PackagePlus, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { BarcodeScannerAction } from '@/components/app/BarcodeScannerAction'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
@@ -62,14 +63,15 @@ export default function NewInventoryPage() {
   const resolvedStorageId = storageUnitId || dashboard.storageUnits[0]?.id || ''
   const resolvedUnit = mode === 'existing' && selectedProduct ? selectedProduct.default_unit : unit
 
-  const lookupEan = async () => {
-    const normalized = normalizeBarcode(ean)
+  const lookupEan = async (candidate = ean) => {
+    const normalized = normalizeBarcode(candidate)
     if (!normalized) {
       setLookupError('EAN musí obsahovat 8 až 14 číslic.')
       setLookupStatus(null)
       return
     }
 
+    setEan(normalized)
     setLookupLoading(true)
     setLookupError(null)
     setLookupStatus(null)
@@ -80,13 +82,11 @@ export default function NewInventoryPage() {
 
       if (response.status === 404 || !payload.found || !payload.product) {
         setLookupError('Produkt v Open Food Facts zatím není. Údaje můžeš vyplnit ručně.')
-        setLookupLoading(false)
         return
       }
 
       if (!response.ok) {
         setLookupError('Open Food Facts teď neodpovídá. Ruční zadání dál funguje.')
-        setLookupLoading(false)
         return
       }
 
@@ -105,6 +105,14 @@ export default function NewInventoryPage() {
     } finally {
       setLookupLoading(false)
     }
+  }
+
+  const handleScannedBarcode = (barcode: string) => {
+    setEan(barcode)
+    setLookupError(null)
+    setLookupStatus(null)
+    setImageUrl(null)
+    void lookupEan(barcode)
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -260,21 +268,26 @@ export default function NewInventoryPage() {
             <>
               <div className="rounded-2xl border border-primary/15 bg-primary-soft/35 p-4">
                 <label htmlFor={eanInputId} className="field-label">EAN / čárový kód</label>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <input
-                    id={eanInputId}
-                    className="input-field min-w-0 flex-1"
-                    value={ean}
-                    onChange={(event) => {
-                      setEan(event.target.value)
-                      setLookupError(null)
-                      setLookupStatus(null)
-                      setImageUrl(null)
-                    }}
-                    inputMode="numeric"
-                    autoComplete="off"
-                    placeholder="např. 859…"
-                    maxLength={20}
+                <input
+                  id={eanInputId}
+                  className="input-field"
+                  value={ean}
+                  onChange={(event) => {
+                    setEan(event.target.value)
+                    setLookupError(null)
+                    setLookupStatus(null)
+                    setImageUrl(null)
+                  }}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="např. 859…"
+                  maxLength={20}
+                  autoFocus
+                />
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <BarcodeScannerAction
+                    onDetected={handleScannedBarcode}
+                    disabled={lookupLoading}
                   />
                   <button
                     type="button"
@@ -287,7 +300,7 @@ export default function NewInventoryPage() {
                   </button>
                 </div>
                 <p className="mt-2 text-xs leading-5 text-text-muted">
-                  Urychlení, ne podmínka. Když produkt nenajdeme, pokračuj ručně.
+                  Naskenuj kód kamerou nebo ho napiš. Když produkt nenajdeme, pokračuj ručně.
                 </p>
                 {lookupStatus ? <p className="mt-2 text-sm font-medium text-primary">{lookupStatus}</p> : null}
                 {lookupError ? <p className="mt-2 text-sm text-warning" role="status">{lookupError}</p> : null}
@@ -325,7 +338,6 @@ export default function NewInventoryPage() {
                   placeholder="např. Vejce"
                   maxLength={200}
                   required
-                  autoFocus={!ean}
                 />
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
