@@ -1,24 +1,34 @@
 'use client'
 
 import { FormEvent, useEffect, useId, useRef, useState } from 'react'
-import { RefreshCw, X } from 'lucide-react'
+import { Gauge, RefreshCw, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
+import type { Enums } from '@/types/supabase-v2'
 
 const numberFormatter = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 3 })
 
-function formatQuantity(value: number, unit: string) {
-  return `${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
+type EstimateLevel = Enums<'inventory_estimate_level'>
+type QuantityPrecision = Enums<'inventory_quantity_precision'>
+
+function formatQuantity(value: number, unit: string, estimated = false) {
+  return `${estimated ? '~' : ''}${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
 }
 
 function hasAtMostThreeDecimals(value: number) {
   return Math.abs(Math.round(value * 1000) / 1000 - value) <= Number.EPSILON * 16
 }
 
+function estimateQuantity(initialQuantity: number, factor: number) {
+  return Math.max(0.001, Math.round(initialQuantity * factor * 1000) / 1000)
+}
+
 export function CorrectBatchAction({
   batchId,
   productName,
   quantity: recordedQuantity,
+  initialQuantity,
+  quantityPrecision,
   unit,
   onCorrected,
   compact = false,
@@ -26,6 +36,8 @@ export function CorrectBatchAction({
   batchId: string
   productName: string
   quantity: number
+  initialQuantity: number
+  quantityPrecision: QuantityPrecision
   unit: string
   onCorrected: () => void | Promise<void>
   compact?: boolean
@@ -71,6 +83,30 @@ export function CorrectBatchAction({
     setError(null)
   }
 
+  const applyEstimate = async (level: EstimateLevel, label: string) => {
+    if (submitting) return
+    setSubmitting(true)
+    setError(null)
+
+    const { data: estimatedQuantity, error: estimateError } = await supabaseV2Browser().rpc(
+      'estimate_inventory_batch',
+      { p_batch_id: batchId, p_level: level }
+    )
+
+    if (estimateError || typeof estimatedQuantity !== 'number') {
+      setError('Odhad se nepodařilo uložit. Původní stav zůstal beze změny.')
+      setSubmitting(false)
+      return
+    }
+
+    await onCorrected()
+    toast.success(`${productName} · ${label} · ${formatQuantity(estimatedQuantity, unit, true)}`)
+    setSubmitting(false)
+    setOpen(false)
+    setQuantity('')
+    setReason('')
+  }
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -85,7 +121,7 @@ export function CorrectBatchAction({
       setError('Množství může mít nejvýše tři desetinná místa.')
       return
     }
-    if (value === recordedQuantity) {
+    if (value === recordedQuantity && quantityPrecision === 'exact') {
       setError('Zadej skutečné množství odlišné od hodnoty v aplikaci.')
       return
     }
@@ -112,7 +148,7 @@ export function CorrectBatchAction({
 
     if (correctionError) {
       setError(
-        correctionError.message.includes('Correction must change the quantity')
+        correctionError.message.includes('Correction must change quantity')
           ? 'Balení se mezitím změnilo. Obnov přehled a zkus to znovu.'
           : 'Korekci se nepodařilo uložit. Zásoba zůstala beze změny.'
       )
@@ -123,13 +159,19 @@ export function CorrectBatchAction({
     await onCorrected()
     const signedDelta = typeof delta === 'number' ? delta : value - recordedQuantity
     toast.success(
-      `Stav srovnán · ${productName} ${signedDelta > 0 ? '+' : ''}${formatQuantity(signedDelta, unit)}`
+      signedDelta === 0
+        ? `Stav potvrzen přesně · ${productName} ${formatQuantity(value, unit)}`
+        : `Stav srovnán · ${productName} ${signedDelta > 0 ? '+' : ''}${formatQuantity(signedDelta, unit)}`
     )
     setSubmitting(false)
     setOpen(false)
     setQuantity('')
     setReason('')
   }
+
+  const fullEstimate = estimateQuantity(initialQuantity, 1)
+  const halfEstimate = estimateQuantity(initialQuantity, 0.5)
+  const lowEstimate = estimateQuantity(initialQuantity, 0.2)
 
   return (
     <>
@@ -165,7 +207,7 @@ export function CorrectBatchAction({
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={descriptionId}
-            className="w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-xl sm:p-6"
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-xl sm:p-6"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -186,13 +228,49 @@ export function CorrectBatchAction({
             </div>
 
             <p id={descriptionId} className="mt-3 text-sm leading-6 text-text-muted">
-              V aplikaci je {formatQuantity(recordedQuantity, unit)}. Zadej množství, které fyzicky opravdu máš. Rozdíl zapíšeme jako korekci, ne jako spotřebu.
+              V aplikaci je {formatQuantity(recordedQuantity, unit, quantityPrecision === 'estimated')}. Když množství znáš, zadej ho přesně. Když ho nechceš vážit, použij rychlý odhad — v aplikaci zůstane viditelně označený jako přibližný.
             </p>
+
+            <div className="mt-5 rounded-2xl border border-primary/15 bg-primary-soft/35 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-text">
+                <Gauge size={17} className="text-primary" aria-hidden="true" />
+                Rychlý odhad bez vážení
+              </div>
+              <p className="mt-1 text-xs leading-5 text-text-muted">
+                Odhad se počítá z původního množství tohoto balení ({formatQuantity(initialQuantity, unit)}), ne z posledního odhadu.
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  className="button-secondary min-w-0 px-2 text-xs"
+                  disabled={submitting}
+                  onClick={() => void applyEstimate('full', 'plné')}
+                >
+                  Plné<br />~{formatQuantity(fullEstimate, unit)}
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary min-w-0 px-2 text-xs"
+                  disabled={submitting}
+                  onClick={() => void applyEstimate('half', 'půlka')}
+                >
+                  Půlka<br />~{formatQuantity(halfEstimate, unit)}
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary min-w-0 px-2 text-xs"
+                  disabled={submitting}
+                  onClick={() => void applyEstimate('low', 'dochází')}
+                >
+                  Dochází<br />~{formatQuantity(lowEstimate, unit)}
+                </button>
+              </div>
+            </div>
 
             <form onSubmit={submit} className="mt-5 space-y-4">
               <div>
                 <label htmlFor={quantityId} className="field-label">
-                  Skutečné množství
+                  Přesné množství
                 </label>
                 <div className="relative">
                   <input
@@ -223,7 +301,7 @@ export function CorrectBatchAction({
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
                   maxLength={500}
-                  placeholder="např. přepočítáno doma, špatně zadaný nákup"
+                  placeholder="např. převáženo, přepočítáno doma"
                   required
                 />
                 <p className="mt-1.5 text-xs text-text-muted">{reason.length}/500</p>
@@ -241,7 +319,7 @@ export function CorrectBatchAction({
                 </button>
                 <button type="submit" disabled={submitting || !quantity || !reason.trim()} className="button-primary flex-1">
                   <RefreshCw size={17} aria-hidden="true" />
-                  {submitting ? 'Ukládám…' : 'Srovnat'}
+                  {submitting ? 'Ukládám…' : quantityPrecision === 'estimated' ? 'Potvrdit přesně' : 'Srovnat'}
                 </button>
               </div>
             </form>
