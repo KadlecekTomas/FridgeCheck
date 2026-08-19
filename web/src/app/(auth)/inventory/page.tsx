@@ -17,8 +17,8 @@ import type { Tables } from '@/types/supabase-v2'
 
 const numberFormatter = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 })
 
-function quantity(value: number, unit: string) {
-  return `${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
+function quantity(value: number, unit: string, estimated = false) {
+  return `${estimated ? '~' : ''}${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
 }
 
 export default function InventoryPage() {
@@ -112,22 +112,24 @@ export default function InventoryPage() {
               (batch) => batch.product_id === product.id && batch.status === 'active'
             )
             const target = dashboard.stockTargets.find((item) => item.product_id === product.id)
-            const currentQuantity = dashboard.batches
-              .filter(
-                (batch) =>
-                  batch.product_id === product.id &&
-                  batch.unit === product.default_unit &&
-                  isBatchUsableForStock({
-                    id: batch.id,
-                    productId: batch.product_id,
-                    quantity: batch.quantity,
-                    unit: batch.unit,
-                    expiryDate: batch.expiry_date,
-                    expiryType: batch.expiry_type,
-                    status: batch.status,
-                  })
-              )
-              .reduce((sum, batch) => sum + batch.quantity, 0)
+            const usableBatches = dashboard.batches.filter(
+              (batch) =>
+                batch.product_id === product.id &&
+                batch.unit === product.default_unit &&
+                isBatchUsableForStock({
+                  id: batch.id,
+                  productId: batch.product_id,
+                  quantity: batch.quantity,
+                  unit: batch.unit,
+                  expiryDate: batch.expiry_date,
+                  expiryType: batch.expiry_type,
+                  status: batch.status,
+                })
+            )
+            const currentQuantity = usableBatches.reduce((sum, batch) => sum + batch.quantity, 0)
+            const currentQuantityEstimated = usableBatches.some(
+              (batch) => batch.quantity_precision === 'estimated'
+            )
             const editorOpen = targetProductId === product.id
 
             return (
@@ -139,7 +141,7 @@ export default function InventoryPage() {
                       {product.brand ? <span className="text-sm text-text-muted">{product.brand}</span> : null}
                     </div>
                     <p className="mt-1 text-sm text-text-muted">
-                      Doma {quantity(currentQuantity, product.default_unit)} · {batches.length}{' '}
+                      Doma {quantity(currentQuantity, product.default_unit, currentQuantityEstimated)} · {batches.length}{' '}
                       {batches.length === 1 ? 'aktivní balení' : 'aktivní balení'}
                     </p>
                     {target ? (
@@ -155,6 +157,7 @@ export default function InventoryPage() {
                       productName={product.name}
                       unit={product.default_unit}
                       availableQuantity={currentQuantity}
+                      availableQuantityEstimated={currentQuantityEstimated}
                       onConsumed={dashboard.refresh}
                     />
                     <EditProductMetadataAction product={product} onUpdated={dashboard.refresh} />
@@ -196,12 +199,16 @@ export default function InventoryPage() {
                         .map((batch) => {
                           const storage = storageById.get(batch.storage_unit_id)
                           const days = batch.expiry_date ? daysUntilExpiry(batch.expiry_date) : null
+                          const estimated = batch.quantity_precision === 'estimated'
                           return (
                             <div key={batch.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                               <div className="min-w-0 flex-1">
                                 <span className="font-semibold text-text">
-                                  {quantity(batch.quantity, batch.unit)}
+                                  {quantity(batch.quantity, batch.unit, estimated)}
                                 </span>
+                                {estimated ? (
+                                  <span className="ml-1.5 text-xs font-medium text-text-muted">odhad</span>
+                                ) : null}
                                 {storage ? <span className="text-text-muted"> · {storage.name}</span> : null}
                                 <div className="mt-1">
                                   {days === null ? (
@@ -233,6 +240,8 @@ export default function InventoryPage() {
                                   batchId={batch.id}
                                   productName={product.name}
                                   quantity={batch.quantity}
+                                  initialQuantity={batch.initial_quantity}
+                                  quantityPrecision={batch.quantity_precision}
                                   unit={batch.unit}
                                   onCorrected={dashboard.refresh}
                                 />
