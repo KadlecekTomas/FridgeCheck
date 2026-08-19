@@ -43,7 +43,7 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
   await page.getByRole('button', { name: 'Přidat', exact: true }).click()
 
   let storageCard = page.getByRole('article').filter({ hasText: 'Spíž' })
-  await expect(storageCard).toContainText('Zatím bez historie zásob')
+  await expect(storageCard).toContainText('Zatím nepoužité')
   await storageCard.getByRole('button', { name: 'Přejmenovat Spíž' }).click()
   await storageCard.getByLabel('Nový název Spíž').fill('Suchá spíž')
   await storageCard.getByRole('button', { name: 'Uložit' }).click()
@@ -197,7 +197,7 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
   await expect(page).toHaveURL(/\/history$/)
   await expect(page.getByRole('heading', { name: 'Historie změn' })).toBeVisible()
 
-  const correctionEvent = page.getByRole('article', { name: 'Korekce · Vejce' })
+  const correctionEvent = page.getByRole('article', { name: 'Oprava stavu · Vejce' })
   await expect(correctionEvent).toContainText('+1 ks')
   await expect(correctionEvent).toContainText('přepočítáno doma')
 
@@ -211,7 +211,7 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
   await page.getByRole('link', { name: /Úložná místa/ }).click()
   await expect(page).toHaveURL(/\/more\/storage$/)
   storageCard = page.getByRole('article').filter({ hasText: 'Suchá spíž' })
-  await expect(storageCard).toContainText('1 balení v historii')
+  await expect(storageCard).toContainText('Místo už je v historii zásob')
   await expect(storageCard.getByRole('button', { name: 'Smazat Suchá spíž' })).toBeDisabled()
-  await expect(storageCard).toContainText('Přejmenuj ho místo smazání')
+  await expect(storageCard).toContainText('Můžeš ho přejmenovat, ale ne smazat')
 })
