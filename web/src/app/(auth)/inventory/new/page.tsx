@@ -72,9 +72,21 @@ export default function NewInventoryPage() {
     }
 
     setEan(normalized)
-    setLookupLoading(true)
     setLookupError(null)
     setLookupStatus(null)
+    setImageUrl(null)
+
+    const existingProduct = dashboard.products.find((product) => product.ean_code === normalized)
+    if (existingProduct) {
+      setMode('existing')
+      setProductId(existingProduct.id)
+      setLookupStatus(
+        `${existingProduct.name} už v této domácnosti známe. Přidáváš další balení, takže cíl zásoby i historie zůstanou u jednoho produktu.`
+      )
+      return
+    }
+
+    setLookupLoading(true)
 
     try {
       const response = await fetch(`/api/products/ean?ean=${encodeURIComponent(normalized)}`)
@@ -133,6 +145,19 @@ export default function NewInventoryPage() {
     if (ean.trim() && !normalizedEan) {
       setError('EAN musí obsahovat 8 až 14 číslic.')
       return
+    }
+
+    if (mode === 'new' && normalizedEan) {
+      const existingProduct = dashboard.products.find((product) => product.ean_code === normalizedEan)
+      if (existingProduct) {
+        setMode('existing')
+        setProductId(existingProduct.id)
+        setLookupStatus(
+          `${existingProduct.name} už v této domácnosti existuje. Přepnul jsem formulář na další balení.`
+        )
+        setError('Stejný EAN nevytváří druhý produkt. Zkontroluj množství a přidej další balení.')
+        return
+      }
     }
 
     setSubmitting(true)
@@ -226,7 +251,13 @@ export default function NewInventoryPage() {
           <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl bg-surface-muted p-1.5" role="group" aria-label="Typ přidání">
             <button
               type="button"
-              onClick={() => setMode('new')}
+              onClick={() => {
+                setMode('new')
+                setProductId('')
+                setLookupStatus(null)
+                setError(null)
+              }}
+              aria-pressed={mode === 'new'}
               className={`min-h-11 rounded-xl px-3 text-sm font-semibold transition ${
                 mode === 'new' ? 'bg-surface text-primary shadow-sm' : 'text-text-muted hover:text-text'
               }`}
@@ -235,7 +266,12 @@ export default function NewInventoryPage() {
             </button>
             <button
               type="button"
-              onClick={() => setMode('existing')}
+              onClick={() => {
+                setMode('existing')
+                setLookupStatus(null)
+                setError(null)
+              }}
+              aria-pressed={mode === 'existing'}
               className={`min-h-11 rounded-xl px-3 text-sm font-semibold transition ${
                 mode === 'existing' ? 'bg-surface text-primary shadow-sm' : 'text-text-muted hover:text-text'
               }`}
@@ -263,6 +299,9 @@ export default function NewInventoryPage() {
                   </option>
                 ))}
               </select>
+              {lookupStatus ? (
+                <p className="mt-2 text-sm font-medium text-primary" role="status">{lookupStatus}</p>
+              ) : null}
             </div>
           ) : (
             <>
