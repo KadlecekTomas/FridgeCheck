@@ -127,7 +127,10 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
   await shoppingItem.getByRole('button', { name: 'Upravit Vejce' }).click()
 
   let shoppingEditor = page.getByRole('dialog', { name: 'Upravit položku' })
-  await expect(shoppingEditor).toContainText('Zásoba ani nastavený cíl se nezmění.')
+  await expect(shoppingEditor).toContainText('Produkt, zásoba ani nastavený cíl se nezmění.')
+  await expect(shoppingEditor.getByLabel('Název')).toHaveCount(0)
+  await expect(shoppingEditor.getByText('Vejce', { exact: true })).toBeVisible()
+  await expect(shoppingEditor.getByLabel('Množství k nákupu')).toBeFocused()
   await shoppingEditor.getByLabel('Množství k nákupu').fill('10')
   await shoppingEditor.getByRole('button', { name: 'Uložit' }).click()
   await expect(shoppingEditor).not.toBeVisible()
