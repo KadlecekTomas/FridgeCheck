@@ -54,9 +54,7 @@ export default function MorePage() {
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
         <h1 className="text-[30px] font-bold tracking-[-0.03em] text-text">Více</h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Správa domácností a účtu mimo každodenní food loop.
-        </p>
+        <p className="mt-1 text-sm text-text-muted">Domácnosti, úložná místa, historie a účet.</p>
       </div>
 
       <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
@@ -76,7 +74,7 @@ export default function MorePage() {
 
         {activeHousehold ? (
           <div className="mt-5 rounded-2xl bg-canvas p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">Aktivní</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">Používáš</p>
             <p className="mt-1 font-semibold text-text">{activeHousehold.name}</p>
             {dashboard.storageUnits.length > 0 ? (
               <p className="mt-1 text-sm text-text-muted">
@@ -128,7 +126,7 @@ export default function MorePage() {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-bold text-text">Historie změn</span>
-            <span className="mt-0.5 block text-sm leading-5 text-text-muted">Nákupy, spotřeba, odpad a korekce.</span>
+            <span className="mt-0.5 block text-sm leading-5 text-text-muted">Nákupy, spotřeba, vyhození a opravy stavu.</span>
           </span>
         </Link>
       </div>
@@ -137,9 +135,7 @@ export default function MorePage() {
 
       <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <h2 className="font-bold text-text">Účet</h2>
-        <p className="mt-1 text-sm leading-6 text-text-muted">
-          Odhlášení ukončí lokální Supabase session na tomto zařízení.
-        </p>
+        <p className="mt-1 text-sm leading-6 text-text-muted">Odhlásíš tento účet na tomto zařízení.</p>
         <button type="button" onClick={() => void signOut()} className="button-secondary mt-5 text-danger">
           <LogOut size={17} aria-hidden="true" />
           Odhlásit se
