@@ -11,8 +11,8 @@ import { computeLowStock, type DashboardBatch } from '@/domain/inventory/dashboa
 
 const numberFormatter = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 })
 
-function quantity(value: number, unit: string) {
-  return `${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
+function quantity(value: number, unit: string, estimated = false) {
+  return `${estimated ? '~' : ''}${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
 }
 
 export default function ShoppingPage() {
@@ -37,6 +37,7 @@ export default function ShoppingPage() {
         expiryDate: batch.expiry_date,
         expiryType: batch.expiry_type,
         status: batch.status,
+        estimated: batch.quantity_precision === 'estimated',
       })),
     [dashboard.batches]
   )
@@ -91,7 +92,12 @@ export default function ShoppingPage() {
     }
   }
 
-  const addRecommendation = async (productId: string, recommended: number, unit: string) => {
+  const addRecommendation = async (
+    productId: string,
+    recommended: number,
+    unit: string,
+    estimated: boolean
+  ) => {
     if (!activeHousehold) return
     const product = productById.get(productId)
     if (!product) return
@@ -104,6 +110,7 @@ export default function ShoppingPage() {
         product_id: product.id,
         name: product.name,
         quantity: recommended,
+        quantity_precision: estimated ? 'estimated' : 'exact',
         unit: unit as 'g' | 'kg' | 'ml' | 'l' | 'pcs',
         source: 'derived',
         created_by: userId,
@@ -162,7 +169,9 @@ export default function ShoppingPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-bold tracking-[-0.02em] text-text">Doporučené</h2>
-          <p className="mt-1 text-sm text-text-muted">Jen produkty, které jsou pod nastaveným minimem.</p>
+          <p className="mt-1 text-sm text-text-muted">
+            Produkty pod minimem. Znak ~ znamená, že doporučení vychází z odhadované zásoby.
+          </p>
         </div>
         {recommendations.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2">
@@ -176,7 +185,7 @@ export default function ShoppingPage() {
                     <div>
                       <p className="font-semibold text-text">{product.name}</p>
                       <p className="mt-1 text-sm text-text-muted">
-                        Doma {quantity(item.currentQuantity, item.unit)} / cíl{' '}
+                        Doma {quantity(item.currentQuantity, item.unit, item.currentQuantityEstimated)} / cíl{' '}
                         {quantity(item.targetQuantity, item.unit)}
                       </p>
                     </div>
@@ -184,10 +193,23 @@ export default function ShoppingPage() {
                       type="button"
                       className="button-secondary shrink-0"
                       disabled={alreadyAdded}
-                      onClick={() => void addRecommendation(item.productId, item.recommendedQuantity, item.unit)}
+                      onClick={() =>
+                        void addRecommendation(
+                          item.productId,
+                          item.recommendedQuantity,
+                          item.unit,
+                          item.recommendedQuantityEstimated
+                        )
+                      }
                     >
                       {alreadyAdded ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
-                      {alreadyAdded ? 'Přidáno' : quantity(item.recommendedQuantity, item.unit)}
+                      {alreadyAdded
+                        ? 'Přidáno'
+                        : quantity(
+                            item.recommendedQuantity,
+                            item.unit,
+                            item.recommendedQuantityEstimated
+                          )}
                     </button>
                   </div>
                 </div>
@@ -244,7 +266,9 @@ export default function ShoppingPage() {
                 <div className="min-w-0 flex-1 px-1">
                   <p className="truncate font-medium text-text">{item.name}</p>
                   {item.quantity !== null && item.unit ? (
-                    <p className="mt-0.5 text-sm text-text-muted">{quantity(item.quantity, item.unit)}</p>
+                    <p className="mt-0.5 text-sm text-text-muted">
+                      {quantity(item.quantity, item.unit, item.quantity_precision === 'estimated')}
+                    </p>
                   ) : null}
                 </div>
                 <ShoppingItemActions item={item} onChanged={dashboard.refresh} />
