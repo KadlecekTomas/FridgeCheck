@@ -218,7 +218,12 @@ export default function ShoppingPage() {
               maxLength={200}
             />
           </label>
-          <button type="submit" className="button-primary shrink-0" disabled={saving || !manualName.trim()}>
+          <button
+            type="submit"
+            className="button-primary shrink-0"
+            disabled={saving || !manualName.trim()}
+            aria-label="Přidat"
+          >
             <Plus size={18} aria-hidden="true" />
             <span className="hidden sm:inline">Přidat</span>
           </button>
