@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from 'react'
 import { Check, Plus, ShoppingBasket } from 'lucide-react'
 import { toast } from 'sonner'
+import { ShoppingItemActions } from '@/components/app/ShoppingItemActions'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
@@ -217,7 +218,12 @@ export default function ShoppingPage() {
               maxLength={200}
             />
           </label>
-          <button type="submit" className="button-primary shrink-0" disabled={saving || !manualName.trim()}>
+          <button
+            type="submit"
+            className="button-primary shrink-0"
+            disabled={saving || !manualName.trim()}
+            aria-label="Přidat"
+          >
             <Plus size={18} aria-hidden="true" />
             <span className="hidden sm:inline">Přidat</span>
           </button>
@@ -226,18 +232,28 @@ export default function ShoppingPage() {
         {openItems.length > 0 ? (
           <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
             {openItems.map((item) => (
-              <button
+              <div
                 key={item.id}
-                type="button"
-                onClick={() => void toggleItem(item.id, item.checked)}
-                className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                role="group"
+                aria-label={`Nákupní položka ${item.name}`}
+                className="flex min-h-14 items-center gap-2 px-3 py-2"
               >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-border bg-canvas" />
-                <span className="min-w-0 flex-1 truncate font-medium text-text">{item.name}</span>
-                {item.quantity !== null && item.unit ? (
-                  <span className="shrink-0 text-sm text-text-muted">{quantity(item.quantity, item.unit)}</span>
-                ) : null}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => void toggleItem(item.id, item.checked)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  aria-label={`Označit ${item.name} jako nakoupené`}
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-border bg-canvas" />
+                </button>
+                <div className="min-w-0 flex-1 px-1">
+                  <p className="truncate font-medium text-text">{item.name}</p>
+                  {item.quantity !== null && item.unit ? (
+                    <p className="mt-0.5 text-sm text-text-muted">{quantity(item.quantity, item.unit)}</p>
+                  ) : null}
+                </div>
+                <ShoppingItemActions item={item} onChanged={dashboard.refresh} />
+              </div>
             ))}
           </div>
         ) : (
