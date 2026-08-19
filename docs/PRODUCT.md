@@ -80,16 +80,25 @@ Avoid prominent statistics that do not change the user's next action.
 Every additional required field reduces long-term retention. Therefore:
 
 - barcode scanning should accelerate entry, not be required
-- product metadata may be prefilled from Open Food Facts but must remain editable
+- product metadata may be prefilled from Open Food Facts but must remain editable on first capture
 - expiry should be quick to set
 - quantity input should support sensible defaults
 - repeated products should be addable with very few interactions
+- users must not have to perform unit arithmetic that the app can perform safely itself
+
+A common packaged purchase such as `24 × 100 g Eidam` must be enterable as `24 balení` with `100 g / balení`; the user must not calculate and type `2400 g` manually.
+
+When a product has trustworthy per-package quantity metadata, package-aware interaction should remain consistent across the core loop: inventory display, consumption, discard, stock correction, stock targets, replenishment and shopping. Canonical inventory arithmetic may still use mass/volume/count internally.
 
 ## Barcode and external product data
 
 Barcode data is a convenience layer, not a source of truth.
 
-External metadata can be missing, stale or incorrect. The user must be able to correct it. Internal product identity must not depend exclusively on an external API response.
+For household-private product definitions, a valid barcode already known in the active household must resolve locally before any external lookup. Repeated scanning should add another physical batch rather than ask for product metadata again or create a duplicate product definition.
+
+External metadata can be missing, stale or incorrect. A valid barcode that Open Food Facts does not know is a normal first-time path, not a dead end: the user can enter the product manually once, save it with that barcode, and the household should recognize it locally on subsequent scans.
+
+Internal product identity must not depend exclusively on an external API response. External lookup outages must not prevent manual food entry.
 
 ## Shopping list
 
@@ -99,6 +108,9 @@ Derived recommendations must explain enough context to be trusted, for example:
 
 - `Eggs: 3 at home / target 10 -> buy 7`
 - `Oats: ~150 g at home / target 500 g -> buy ~350 g`
+- `Eidam: 25 packages at home / target 30 -> buy 5 packages`
+
+For retail packaged goods, recommendations should resolve to purchasable whole packages rather than forcing impossible fractional package arithmetic.
 
 The user must be able to override the recommendation without corrupting underlying inventory data.
 
@@ -129,6 +141,8 @@ The MVP is successful when a real user can use it continuously without the inven
 - What should I eat first?
 - What am I running out of?
 - What should I buy for the next few days?
+
+A non-technical household member should not need to understand terms such as batch, database, RLS, Supabase, internal unit representation or external product-provider behavior to complete the core loop.
 
 ## Product decision rule
 
