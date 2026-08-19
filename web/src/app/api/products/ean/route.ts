@@ -10,6 +10,9 @@ const OPEN_FOOD_FACTS_FIELDS = [
   'categories',
   'image_front_url',
   'image_url',
+  'quantity',
+  'product_quantity',
+  'product_quantity_unit',
 ].join(',')
 
 const OPEN_FOOD_FACTS_USER_AGENT = 'HlidacJidla/0.1 (https://hlidacjidla.eu)'
