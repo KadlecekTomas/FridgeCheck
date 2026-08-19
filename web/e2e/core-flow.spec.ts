@@ -121,7 +121,41 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
   await expect(page.getByText('Doma 6 ks / cíl 20 ks')).toBeVisible()
   await page.getByRole('button', { name: '14 ks' }).click()
   await expect(page.getByRole('button', { name: 'Přidáno' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: /Vejce 14 ks/ })).toBeVisible()
+
+  let shoppingItem = page.getByRole('group', { name: 'Nákupní položka Vejce' })
+  await expect(shoppingItem).toContainText('14 ks')
+  await shoppingItem.getByRole('button', { name: 'Upravit Vejce' }).click()
+
+  let shoppingEditor = page.getByRole('dialog', { name: 'Upravit položku' })
+  await expect(shoppingEditor).toContainText('Zásoba ani nastavený cíl se nezmění.')
+  await shoppingEditor.getByLabel('Množství k nákupu').fill('10')
+  await shoppingEditor.getByRole('button', { name: 'Uložit' }).click()
+  await expect(shoppingEditor).not.toBeVisible()
+
+  shoppingItem = page.getByRole('group', { name: 'Nákupní položka Vejce' })
+  await expect(shoppingItem).toContainText('10 ks')
+  await expect(page.getByText('Doma 6 ks / cíl 20 ks')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Přidáno' })).toBeDisabled()
+
+  await page.getByLabel('Přidat vlastní položku').fill('Pečivo')
+  await page.getByRole('button', { name: 'Přidat', exact: true }).click()
+  let manualItem = page.getByRole('group', { name: 'Nákupní položka Pečivo' })
+  await expect(manualItem).toBeVisible()
+  await manualItem.getByRole('button', { name: 'Upravit Pečivo' }).click()
+
+  shoppingEditor = page.getByRole('dialog', { name: 'Upravit položku' })
+  await shoppingEditor.getByLabel('Název').fill('Celozrnné pečivo')
+  await shoppingEditor.getByRole('button', { name: 'Uložit' }).click()
+  await expect(shoppingEditor).not.toBeVisible()
+
+  manualItem = page.getByRole('group', { name: 'Nákupní položka Celozrnné pečivo' })
+  await expect(manualItem).toBeVisible()
+  await manualItem.getByRole('button', { name: 'Smazat Celozrnné pečivo' }).click()
+  await expect(page.getByRole('group', { name: 'Nákupní položka Celozrnné pečivo' })).toHaveCount(0)
+
+  await shoppingItem.getByRole('button', { name: 'Smazat Vejce' }).click()
+  await expect(page.getByRole('group', { name: 'Nákupní položka Vejce' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '14 ks' })).toBeEnabled()
 
   await page.getByRole('link', { name: 'Přidat', exact: true }).click()
   await expect(page).toHaveURL(/\/inventory\/new$/)
