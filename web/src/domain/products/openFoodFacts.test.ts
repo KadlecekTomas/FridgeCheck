@@ -15,29 +15,80 @@ describe('Open Food Facts product mapping', () => {
     assert.equal(normalizeBarcode(''), null)
   })
 
-  it('prefers Czech product name and maps only the first human-readable brand/category', () => {
+  it('prefers Czech product name and maps package size for low-friction entry', () => {
     assert.deepEqual(
       mapOpenFoodFactsResponse(
         {
           status: 1,
           product: {
-            product_name_cs: 'Bílý jogurt',
-            product_name: 'Plain yoghurt',
+            product_name_cs: 'Eidam 30 %',
+            product_name: 'Edam cheese',
             brands: 'Test Brand, Secondary Brand',
-            categories: 'Jogurty, Mléčné výrobky',
+            categories: 'Sýry, Mléčné výrobky',
             image_front_url: 'https://images.openfoodfacts.org/images/products/123/front_cs.1.400.jpg',
+            product_quantity: '100',
+            product_quantity_unit: 'g',
           },
         },
         '8591234567890'
       ),
       {
         ean: '8591234567890',
-        name: 'Bílý jogurt',
+        name: 'Eidam 30 %',
         brand: 'Test Brand',
-        category: 'Jogurty',
+        category: 'Sýry',
         imageUrl: 'https://images.openfoodfacts.org/images/products/123/front_cs.1.400.jpg',
+        packageQuantity: 100,
+        packageUnit: 'g',
       }
     )
+  })
+
+  it('accepts numeric normalized package quantities and rounds to inventory precision', () => {
+    const mapped = mapOpenFoodFactsResponse(
+      {
+        status: 1,
+        product: {
+          product_name: 'Drink',
+          product_quantity: 330.3334,
+          product_quantity_unit: 'ml',
+        },
+      },
+      '12345678'
+    )
+
+    assert.ok(mapped)
+    assert.equal(mapped.packageQuantity, 330.333)
+    assert.equal(mapped.packageUnit, 'ml')
+  })
+
+  it('drops incomplete or unsafe package metadata as one pair', () => {
+    const missingUnit = mapOpenFoodFactsResponse(
+      { status: 1, product: { product_quantity: '100' } },
+      '12345678'
+    )
+    const invalidQuantity = mapOpenFoodFactsResponse(
+      { status: 1, product: { product_quantity: '0', product_quantity_unit: 'g' } },
+      '12345678'
+    )
+    const hugeQuantity = mapOpenFoodFactsResponse(
+      { status: 1, product: { product_quantity: '1000000001', product_quantity_unit: 'g' } },
+      '12345678'
+    )
+    const invalidUnit = mapOpenFoodFactsResponse(
+      { status: 1, product: { product_quantity: '100', product_quantity_unit: 'kg' } },
+      '12345678'
+    )
+    const invalidType = mapOpenFoodFactsResponse(
+      { status: 1, product: { product_quantity: {}, product_quantity_unit: 'g' } },
+      '12345678'
+    )
+
+    for (const mapped of [missingUnit, invalidQuantity, hugeQuantity, invalidUnit, invalidType]) {
+      assert.ok(mapped)
+      assert.equal(mapped.packageQuantity, null)
+      assert.equal(mapped.packageUnit, null)
+    }
   })
 
   it('bounds untrusted text before it reaches the form/database contract', () => {
@@ -68,12 +119,16 @@ describe('Open Food Facts product mapping', () => {
         brand: '',
         category: '',
         imageUrl: null,
+        packageQuantity: null,
+        packageUnit: null,
       }
     )
   })
 
   it('rejects not-found responses and untrusted image hosts', () => {
     assert.equal(mapOpenFoodFactsResponse({ status: 0 }, '12345678'), null)
+    assert.equal(mapOpenFoodFactsResponse(null, '12345678'), null)
+    assert.equal(mapOpenFoodFactsResponse({ status: 1, product: [] }, '12345678'), null)
     assert.deepEqual(
       mapOpenFoodFactsResponse(
         {
@@ -91,6 +146,8 @@ describe('Open Food Facts product mapping', () => {
         brand: '',
         category: '',
         imageUrl: null,
+        packageQuantity: null,
+        packageUnit: null,
       }
     )
   })
@@ -113,6 +170,8 @@ describe('Open Food Facts product mapping', () => {
         brand: '',
         category: '',
         imageUrl: null,
+        packageQuantity: null,
+        packageUnit: null,
       }
     )
   })
