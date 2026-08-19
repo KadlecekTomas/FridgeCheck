@@ -99,7 +99,9 @@ test('barcode entry stays usable for known, unknown, packaged and unavailable pr
 
   await expect(page.getByRole('status')).toContainText('Jedno balení má 100 g')
   await expect(page.getByLabel('Název')).toHaveValue('Eidam EAN')
-  await expect(page.getByText('Test Dairy')).toBeVisible()
+  await page.getByText('Upřesnit značku nebo kategorii', { exact: true }).click()
+  await expect(page.getByLabel('Značka')).toHaveValue('Test Dairy')
+  await expect(page.getByLabel('Kategorie')).toHaveValue('Sýry')
   await expect(page.getByLabel('Kolik balení máš?')).toHaveValue('1')
   await page.getByLabel('Kolik balení máš?').fill('24')
   await expect(page.getByText(/24 balení × 100 g = 2.?400 g celkem/)).toBeVisible()
