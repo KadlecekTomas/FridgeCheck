@@ -62,7 +62,9 @@ Typical fields:
 
 External metadata provenance may be stored, but third-party data is not the source of truth.
 
-EAN must not be assumed globally unique without handling missing/invalid codes and user-created products.
+EAN is not globally unique: the same code may legitimately appear in separate households and products without a usable EAN remain valid. Within one household, however, a non-null normalized EAN identifies one reusable `Product`. Repeated purchases/scans of that EAN must add another `InventoryBatch` to the existing product rather than silently splitting targets, history and replenishment across duplicate products. The database must enforce the household-scoped invariant as well as the UI so concurrent/direct writes cannot create duplicates.
+
+A repeated EAN must not silently overwrite the household's existing product metadata. Metadata correction is an explicit user operation. If an incoming repeated-EAN batch uses an incompatible unit, the write must fail explicitly rather than reinterpret the quantity.
 
 ### InventoryBatch
 
