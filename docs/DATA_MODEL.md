@@ -62,7 +62,9 @@ Typical fields:
 
 External metadata provenance may be stored, but third-party data is not the source of truth.
 
-EAN must not be assumed globally unique without handling missing/invalid codes and user-created products.
+EAN is not globally unique: the same code may legitimately appear in separate households and products without a usable EAN remain valid. Within one household, however, a non-null normalized EAN identifies one reusable `Product`. Repeated purchases/scans of that EAN must add another `InventoryBatch` to the existing product rather than silently splitting targets, history and replenishment across duplicate products. The database must enforce the household-scoped invariant as well as the UI so concurrent/direct writes cannot create duplicates.
+
+A repeated EAN must not silently overwrite the household's existing product metadata. Metadata correction is an explicit user operation. If an incoming repeated-EAN batch uses an incompatible unit, the write must fail explicitly rather than reinterpret the quantity.
 
 ### InventoryBatch
 
@@ -75,6 +77,8 @@ Typical fields:
 - `product_id`
 - `storage_unit_id`
 - `quantity`
+- `initial_quantity`
+- `quantity_precision` (`exact`, `estimated`)
 - `unit`
 - `expiry_date`
 - `expiry_type` (`use_by`, `best_before`, `unknown`)
@@ -88,6 +92,10 @@ Typical fields:
 Expiry belongs here, not on `Product`.
 
 A product can have multiple active batches with different dates and locations.
+
+`initial_quantity` records the original physical amount of the batch and does not change when the current state is consumed or estimated. It gives quick approximate states a stable reference instead of repeatedly estimating from an earlier estimate.
+
+`quantity_precision` is part of the fact, not presentation metadata. An `estimated` quantity must remain visibly approximate in every surface that relies on it. A manual exact correction changes the current batch precision back to `exact`; consumption of an estimated amount keeps the remaining batch estimated until the user measures or counts it exactly.
 
 ### StockTarget
 
@@ -137,6 +145,8 @@ The current batch quantity can remain materialized for fast reads, but quantity-
 
 History is important for future consumption prediction and waste analysis.
 
+A quick approximate update is still an audited correction. The event reason must distinguish it from an exact recount/measurement.
+
 ### ShoppingListItem
 
 Represents an explicit shopping-list decision.
@@ -146,7 +156,9 @@ A shopping item can be:
 - derived from replenishment logic
 - manually added
 
-Keep the recommendation calculation separate from the user's final shopping intent so a user override does not corrupt inventory or targets.
+Typical quantity-bearing items also retain `quantity_precision` so a recommendation derived from approximate stock cannot silently appear exact after it is added to the shopping list.
+
+Keep the recommendation calculation separate from the user's final shopping intent so a user override does not corrupt inventory or targets. When the user deliberately changes an estimated derived shopping quantity, that edited quantity becomes an explicit exact shopping decision; changing only the item name does not alter its precision semantics.
 
 ## Derived concepts
 
@@ -162,6 +174,8 @@ It must exclude at least:
 
 Future logic may discount stock that will expire before the relevant planning horizon, but that behavior must be explicit and tested.
 
+If any contributing usable batch has `quantity_precision = estimated`, an aggregate usable-stock amount is also approximate. Derived replenishment from that aggregate must preserve that uncertainty rather than formatting the numeric result as exact.
+
 ### Replenishment need
 
 A simple baseline is:
@@ -175,6 +189,7 @@ The real implementation must also handle:
 - planning horizon
 - expected/planned consumption
 - manual overrides
+- quantity precision / approximation provenance
 
 Do not encode this formula independently in multiple UI components.
 
@@ -192,7 +207,13 @@ Only convert within compatible families unless product-specific conversion metad
 
 Do not use floating-point arithmetic carelessly for values where rounding can accumulate. Define normalization and rounding rules centrally.
 
-Approximate inventory (`low`, `half`, `full`) may be supported as a separate explicit mode; do not pretend approximate states are precise measurements.
+Approximate inventory is a separate explicit mode; do not pretend approximate states are precise measurements. The current quick-estimate contract uses stable fractions of the batch's original `initial_quantity`:
+
+- `full` = 100%
+- `half` = 50%
+- `low` / `dochází` = 20%
+
+These are operational estimates, not measurements. They must be stored with `quantity_precision = estimated` and displayed with an approximation marker such as `~`. Applying one estimate after another always derives from `initial_quantity`, never from the previous estimate, so repeated use cannot compound rounding drift.
 
 ## Expiry rules
 
@@ -218,6 +239,8 @@ A correction should:
 - preserve an audit event
 - optionally capture a reason
 - never masquerade as consumption if the user is fixing incorrect data
+
+An exact manual correction of an estimated batch is meaningful even when the numeric value stays the same because it changes the epistemic state from estimated to exact. That transition must remain auditable.
 
 ## Deletion
 
@@ -247,9 +270,11 @@ Use database constraints for facts the database can enforce.
 Examples:
 
 - non-negative active quantity where appropriate
+- positive immutable batch `initial_quantity`
 - valid enum/check values
 - required household ownership
 - foreign-key integrity
+- household-scoped uniqueness for non-null normalized EAN
 - uniqueness only when semantics truly require it
 
 Add indexes based on actual access paths, especially household-scoped active inventory and expiry queries.
