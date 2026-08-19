@@ -58,7 +58,7 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
   await page.getByLabel('Název').fill('Vejce')
   await page.getByLabel('Kolik toho přidáváš?').fill('5')
   await page.getByLabel('Datum na obalu').selectOption('use_by')
-  await page.getByLabel('Datum').fill(tomorrowDate)
+  await page.getByLabel('Datum', { exact: true }).fill(tomorrowDate)
   await page.getByRole('button', { name: 'Přidat do zásob' }).click()
 
   await expect(page).toHaveURL(/\/inventory$/)
@@ -72,7 +72,7 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
   await page.getByLabel('Co přidáváš?').selectOption({ label: 'Vejce' })
   await page.getByLabel('Kolik toho přidáváš?').fill('7')
   await page.getByLabel('Datum na obalu').selectOption('use_by')
-  await page.getByLabel('Datum').fill(laterDate)
+  await page.getByLabel('Datum', { exact: true }).fill(laterDate)
   await page.getByRole('button', { name: 'Přidat do zásob' }).click()
 
   await expect(page).toHaveURL(/\/inventory$/)
@@ -166,7 +166,7 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
   await page.getByLabel('Kolik toho přidáváš?').fill('2')
   await page.getByLabel('Kam to dáváš?').selectOption({ label: 'Suchá spíž' })
   await page.getByLabel('Datum na obalu').selectOption('use_by')
-  await page.getByLabel('Datum').fill(yesterdayDate)
+  await page.getByLabel('Datum', { exact: true }).fill(yesterdayDate)
   await page.getByRole('button', { name: 'Přidat do zásob' }).click()
 
   await expect(page).toHaveURL(/\/inventory$/)
