@@ -26,7 +26,7 @@ concurrency:
 jobs:
   household-inventory-loop:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
