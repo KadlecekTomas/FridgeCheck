@@ -19,6 +19,7 @@ function batch(overrides: Partial<DashboardBatch> = {}): DashboardBatch {
     expiryDate: '2026-08-20',
     expiryType: 'use_by',
     status: 'active',
+    estimated: false,
     ...overrides,
   }
 }
@@ -125,7 +126,37 @@ describe('dashboard inventory rules', () => {
         targetQuantity: 10,
         unit: 'pcs',
         currentQuantity: 3,
+        currentQuantityEstimated: false,
         recommendedQuantity: 7,
+        recommendedQuantityEstimated: false,
+      },
+    ])
+  })
+
+  it('marks replenishment as estimated when usable stock contains an estimate', () => {
+    const result = computeLowStock(
+      [
+        {
+          productId: 'oats',
+          minimumQuantity: 300,
+          targetQuantity: 500,
+          unit: 'g',
+        },
+      ],
+      [batch({ productId: 'oats', quantity: 250, unit: 'g', estimated: true })],
+      now
+    )
+
+    assert.deepEqual(result, [
+      {
+        productId: 'oats',
+        minimumQuantity: 300,
+        targetQuantity: 500,
+        unit: 'g',
+        currentQuantity: 250,
+        currentQuantityEstimated: true,
+        recommendedQuantity: 250,
+        recommendedQuantityEstimated: true,
       },
     ])
   })
