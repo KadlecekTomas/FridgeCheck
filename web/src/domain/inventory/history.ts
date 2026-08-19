@@ -10,7 +10,7 @@ const EVENT_LABELS: Record<InventoryHistoryEventType, string> = {
   purchase: 'Nákup',
   consume: 'Spotřeba',
   discard: 'Vyhození',
-  correction: 'Korekce',
+  correction: 'Oprava stavu',
   move: 'Přesun',
   open: 'Otevření',
 }
