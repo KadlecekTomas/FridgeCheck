@@ -65,10 +65,12 @@ export type Database = {
           expiry_type: Database["public"]["Enums"]["expiry_type"]
           household_id: string
           id: string
+          initial_quantity: number
           opened_at: string | null
           product_id: string
           purchased_at: string | null
           quantity: number
+          quantity_precision: Database["public"]["Enums"]["inventory_quantity_precision"]
           status: Database["public"]["Enums"]["batch_status"]
           storage_unit_id: string
           unit: Database["public"]["Enums"]["inventory_unit"]
@@ -81,10 +83,12 @@ export type Database = {
           expiry_type?: Database["public"]["Enums"]["expiry_type"]
           household_id: string
           id?: string
+          initial_quantity: number
           opened_at?: string | null
           product_id: string
           purchased_at?: string | null
           quantity: number
+          quantity_precision?: Database["public"]["Enums"]["inventory_quantity_precision"]
           status?: Database["public"]["Enums"]["batch_status"]
           storage_unit_id: string
           unit: Database["public"]["Enums"]["inventory_unit"]
@@ -97,10 +101,12 @@ export type Database = {
           expiry_type?: Database["public"]["Enums"]["expiry_type"]
           household_id?: string
           id?: string
+          initial_quantity?: number
           opened_at?: string | null
           product_id?: string
           purchased_at?: string | null
           quantity?: number
+          quantity_precision?: Database["public"]["Enums"]["inventory_quantity_precision"]
           status?: Database["public"]["Enums"]["batch_status"]
           storage_unit_id?: string
           unit?: Database["public"]["Enums"]["inventory_unit"]
@@ -359,6 +365,13 @@ export type Database = {
         Args: { p_batch_id: string; p_quantity: number; p_reason?: string }
         Returns: number
       }
+      estimate_inventory_batch: {
+        Args: {
+          p_batch_id: string
+          p_level: Database["public"]["Enums"]["inventory_estimate_level"]
+        }
+        Returns: number
+      }
       update_inventory_batch_details: {
         Args: {
           p_batch_id: string
@@ -384,6 +397,7 @@ export type Database = {
       batch_status: "active" | "depleted" | "discarded"
       expiry_type: "use_by" | "best_before" | "unknown"
       household_role: "owner" | "member"
+      inventory_estimate_level: "full" | "half" | "low"
       inventory_event_type:
         | "purchase"
         | "consume"
@@ -391,6 +405,7 @@ export type Database = {
         | "correction"
         | "move"
         | "open"
+      inventory_quantity_precision: "exact" | "estimated"
       inventory_unit: "g" | "kg" | "ml" | "l" | "pcs"
       shopping_item_source: "derived" | "manual"
       storage_type: "fridge" | "freezer" | "pantry" | "cabinet" | "other"
