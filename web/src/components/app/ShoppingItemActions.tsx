@@ -91,6 +91,8 @@ export function ShoppingItemActions({
       }
     }
 
+    const quantityChanged = item.quantity !== null && quantityValue !== item.quantity
+
     setSubmitting(true)
     setError(null)
 
@@ -98,7 +100,12 @@ export function ShoppingItemActions({
       .from('shopping_list_items')
       .update({
         name: normalizedName,
-        ...(item.quantity === null ? {} : { quantity: quantityValue }),
+        ...(item.quantity === null
+          ? {}
+          : {
+              quantity: quantityValue,
+              ...(quantityChanged ? { quantity_precision: 'exact' as const } : {}),
+            }),
       })
       .eq('id', item.id)
 
@@ -229,6 +236,11 @@ export function ShoppingItemActions({
                       {item.unit === 'pcs' ? 'ks' : item.unit}
                     </span>
                   </div>
+                  {item.quantity_precision === 'estimated' ? (
+                    <p className="mt-1.5 text-xs text-text-muted">
+                      Toto množství vzniklo z odhadované zásoby. Jakmile ho ručně změníš, je to tvoje explicitní nákupní rozhodnutí.
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
 
