@@ -26,8 +26,8 @@ import { resolveExpiringDays } from '@/domain/expiry/expiry'
 
 const numberFormatter = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 })
 
-function formatQuantity(value: number, unit: string) {
-  return `${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
+function formatQuantity(value: number, unit: string, estimated = false) {
+  return `${estimated ? '~' : ''}${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
 }
 
 export default function DashboardPage() {
@@ -59,6 +59,7 @@ export default function DashboardPage() {
         expiryDate: batch.expiry_date,
         expiryType: batch.expiry_type,
         status: batch.status,
+        estimated: batch.quantity_precision === 'estimated',
       })),
     [dashboard.batches]
   )
@@ -68,20 +69,24 @@ export default function DashboardPage() {
     () => buildUrgentBatches(domainBatches, new Date(), expiringDays).slice(0, 4),
     [domainBatches, expiringDays]
   )
-  const usableQuantityByProduct = useMemo(() => {
+  const usableStockByProduct = useMemo(() => {
     const now = new Date()
     return new Map(
-      dashboard.products.map((product) => [
-        product.id,
-        domainBatches
-          .filter(
-            (batch) =>
-              batch.productId === product.id &&
-              batch.unit === product.default_unit &&
-              isBatchUsableForStock(batch, now)
-          )
-          .reduce((sum, batch) => sum + batch.quantity, 0),
-      ])
+      dashboard.products.map((product) => {
+        const usableBatches = domainBatches.filter(
+          (batch) =>
+            batch.productId === product.id &&
+            batch.unit === product.default_unit &&
+            isBatchUsableForStock(batch, now)
+        )
+        return [
+          product.id,
+          {
+            quantity: usableBatches.reduce((sum, batch) => sum + batch.quantity, 0),
+            estimated: usableBatches.some((batch) => batch.estimated === true),
+          },
+        ] as const
+      })
     )
   }, [dashboard.products, domainBatches])
   const urgentConsumeBatchIds = useMemo(() => {
@@ -92,14 +97,14 @@ export default function DashboardPage() {
     for (const batch of urgentBatches) {
       if (claimedProducts.has(batch.productId)) continue
       if (!isBatchUsableForStock(batch, now)) continue
-      if ((usableQuantityByProduct.get(batch.productId) ?? 0) <= 0) continue
+      if ((usableStockByProduct.get(batch.productId)?.quantity ?? 0) <= 0) continue
 
       claimedProducts.add(batch.productId)
       actionableBatches.add(batch.id)
     }
 
     return actionableBatches
-  }, [urgentBatches, usableQuantityByProduct])
+  }, [urgentBatches, usableStockByProduct])
   const lowStock = useMemo(
     () =>
       computeLowStock(
@@ -179,7 +184,10 @@ export default function DashboardPage() {
                     const urgency = formatExpiryUrgency(batch.daysRemaining, batch.expiryType)
                     const isCritical = batch.daysRemaining < 0 && batch.expiryType === 'use_by'
                     const isWarning = batch.daysRemaining <= 1
-                    const availableQuantity = usableQuantityByProduct.get(batch.productId) ?? 0
+                    const availableStock = usableStockByProduct.get(batch.productId) ?? {
+                      quantity: 0,
+                      estimated: false,
+                    }
 
                     return (
                       <div key={batch.id} className="flex flex-wrap items-center gap-3 p-4">
@@ -216,7 +224,8 @@ export default function DashboardPage() {
                             </span>
                           </div>
                           <p className="mt-1 text-sm text-text-muted">
-                            {formatQuantity(batch.quantity, batch.unit)}
+                            {formatQuantity(batch.quantity, batch.unit, batch.estimated === true)}
+                            {batch.estimated ? ' · odhad' : ''}
                             {storage ? ` · ${storage.name}` : ''}
                             {batch.expiryType === 'best_before' ? ' · min. trvanlivost' : ''}
                           </p>
@@ -236,7 +245,8 @@ export default function DashboardPage() {
                             productId={product.id}
                             productName={product.name}
                             unit={product.default_unit}
-                            availableQuantity={availableQuantity}
+                            availableQuantity={availableStock.quantity}
+                            availableQuantityEstimated={availableStock.estimated}
                             onConsumed={dashboard.refresh}
                           />
                         ) : null}
@@ -273,12 +283,22 @@ export default function DashboardPage() {
                               {product?.name ?? 'Neznámý produkt'}
                             </p>
                             <p className="mt-1 text-sm text-text-muted">
-                              Doma {formatQuantity(item.currentQuantity, item.unit)} · cíl{' '}
-                              {formatQuantity(item.targetQuantity, item.unit)}
+                              Doma{' '}
+                              {formatQuantity(
+                                item.currentQuantity,
+                                item.unit,
+                                item.currentQuantityEstimated
+                              )}{' '}
+                              · cíl {formatQuantity(item.targetQuantity, item.unit)}
                             </p>
                           </div>
                           <span className="shrink-0 rounded-full bg-warning/10 px-3 py-1 text-sm font-semibold text-warning">
-                            koupit {formatQuantity(item.recommendedQuantity, item.unit)}
+                            koupit{' '}
+                            {formatQuantity(
+                              item.recommendedQuantity,
+                              item.unit,
+                              item.recommendedQuantityEstimated
+                            )}
                           </span>
                         </div>
                       </div>
@@ -345,7 +365,11 @@ export default function DashboardPage() {
                         <span className="truncate font-medium text-text">{item.name}</span>
                         {item.quantity && item.unit ? (
                           <span className="shrink-0 text-text-muted">
-                            {formatQuantity(item.quantity, item.unit)}
+                            {formatQuantity(
+                              item.quantity,
+                              item.unit,
+                              item.quantity_precision === 'estimated'
+                            )}
                           </span>
                         ) : null}
                       </div>
