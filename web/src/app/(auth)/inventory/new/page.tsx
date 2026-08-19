@@ -160,13 +160,18 @@ export default function NewInventoryPage() {
       const response = await fetch(`/api/products/ean?ean=${encodeURIComponent(normalized)}`)
       const payload = (await response.json()) as ProductLookupPayload
 
-      if (response.status === 404 || !payload.found || !payload.product) {
+      if (response.status === 404) {
         setLookupStatus('Tenhle kód zatím neznáme. Doplň název jednou a příště ho domácnost pozná sama.')
         return
       }
 
       if (!response.ok) {
         setLookupStatus('Online databáze teď neodpovídá. Kód si přesto můžeš uložit ručně a příště ho poznáme.')
+        return
+      }
+
+      if (!payload.found || !payload.product) {
+        setLookupStatus('Tenhle kód zatím neznáme. Doplň název jednou a příště ho domácnost pozná sama.')
         return
       }
 
