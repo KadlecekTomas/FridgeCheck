@@ -359,6 +359,26 @@ export type Database = {
         Args: { p_batch_id: string; p_quantity: number; p_reason?: string }
         Returns: number
       }
+      update_inventory_batch_details: {
+        Args: {
+          p_batch_id: string
+          p_expiry_date?: string
+          p_expiry_type: Database["public"]["Enums"]["expiry_type"]
+          p_reason?: string
+          p_storage_unit_id: string
+        }
+        Returns: string
+      }
+      update_product_metadata: {
+        Args: {
+          p_brand?: string
+          p_category?: string
+          p_ean_code?: string
+          p_name: string
+          p_product_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       batch_status: "active" | "depleted" | "discarded"
