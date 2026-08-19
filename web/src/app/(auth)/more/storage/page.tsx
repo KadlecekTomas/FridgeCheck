@@ -33,7 +33,7 @@ export default function StorageManagementPage() {
 
     const trimmed = name.trim()
     if (!trimmed) {
-      setError('Napiš název úložiště.')
+      setError('Napiš název místa.')
       return
     }
 
@@ -46,7 +46,7 @@ export default function StorageManagementPage() {
     })
 
     if (insertError) {
-      setError('Úložiště se nepodařilo přidat.')
+      setError('Místo se nepodařilo přidat.')
       setCreating(false)
       return
     }
@@ -54,7 +54,7 @@ export default function StorageManagementPage() {
     setName('')
     setType('pantry')
     await dashboard.refresh()
-    toast.success(`Přidáno úložiště ${trimmed}`)
+    toast.success(`Přidáno místo ${trimmed}`)
     setCreating(false)
   }
 
@@ -63,7 +63,7 @@ export default function StorageManagementPage() {
 
     const trimmed = editingName.trim()
     if (!trimmed) {
-      setError('Název úložiště nesmí být prázdný.')
+      setError('Název místa nesmí být prázdný.')
       return
     }
 
@@ -76,7 +76,7 @@ export default function StorageManagementPage() {
       .eq('household_id', activeHousehold.id)
 
     if (updateError) {
-      setError('Úložiště se nepodařilo přejmenovat.')
+      setError('Místo se nepodařilo přejmenovat.')
       setSavingId(null)
       return
     }
@@ -85,7 +85,7 @@ export default function StorageManagementPage() {
     setEditingId(null)
     setEditingName('')
     setSavingId(null)
-    toast.success('Název úložiště je uložený.')
+    toast.success('Název místa je uložený.')
   }
 
   const deleteStorage = async (storageId: string, storageName: string) => {
@@ -113,26 +113,24 @@ export default function StorageManagementPage() {
       .eq('household_id', activeHousehold.id)
 
     if (deleteError) {
-      setError('Úložiště se nepodařilo smazat. Pokud má historii zásob, raději ho přejmenuj.')
+      setError('Místo se nepodařilo smazat. Pokud už bylo použité, raději ho přejmenuj.')
       setDeletingId(null)
       return
     }
 
     await dashboard.refresh()
     setDeletingId(null)
-    toast.success(`Smazáno úložiště ${storageName}`)
+    toast.success(`Smazáno místo ${storageName}`)
   }
 
-  if (householdLoading || dashboard.loading) {
-    return <StorageSkeleton />
-  }
+  if (householdLoading || dashboard.loading) return <StorageSkeleton />
 
   if (!activeHousehold) {
     return (
       <div className="mx-auto max-w-lg rounded-2xl border border-border bg-surface p-6">
         <h1 className="text-xl font-bold text-text">Nejdřív založ domácnost</h1>
-        <p className="mt-2 text-sm text-text-muted">Úložná místa vždy patří konkrétní domácnosti.</p>
-        <Link href="/dashboard" className="button-primary mt-5">Zpět na domů</Link>
+        <p className="mt-2 text-sm text-text-muted">Pak můžeš přidat lednici, mrazák, spíž a další místa.</p>
+        <Link href="/dashboard" className="button-primary mt-5">Zpět domů</Link>
       </div>
     )
   }
@@ -150,7 +148,7 @@ export default function StorageManagementPage() {
         <p className="mt-3 text-sm font-medium text-primary">{activeHousehold.name}</p>
         <h1 className="mt-1 text-[30px] font-bold tracking-[-0.03em] text-text">Úložná místa</h1>
         <p className="mt-1 max-w-2xl text-sm leading-6 text-text-muted">
-          Lednice, mrazák, spíž a další místa, kde doma jídlo skutečně leží.
+          Lednice, mrazák, spíž a další místa, kde máš doma jídlo.
         </p>
       </div>
 
@@ -166,34 +164,21 @@ export default function StorageManagementPage() {
             <Plus size={19} aria-hidden="true" />
           </span>
           <div>
-            <h2 className="font-bold text-text">Přidat úložiště</h2>
-            <p className="text-sm text-text-muted">Název může být konkrétní: třeba „Mrazák sklep“.</p>
+            <h2 className="font-bold text-text">Přidat místo</h2>
+            <p className="text-sm text-text-muted">Třeba „Spíž“ nebo „Mrazák sklep“.</p>
           </div>
         </div>
 
         <form onSubmit={createStorage} className="mt-5 grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
           <label>
             <span className="field-label">Název</span>
-            <input
-              className="input-field"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              maxLength={120}
-              placeholder="např. Spíž"
-              required
-            />
+            <input className="input-field" value={name} onChange={(event) => setName(event.target.value)} maxLength={120} placeholder="např. Spíž" required />
           </label>
           <label>
             <span className="field-label">Typ</span>
-            <select
-              className="input-field"
-              value={type}
-              onChange={(event) => setType(event.target.value as StorageType)}
-            >
+            <select className="input-field" value={type} onChange={(event) => setType(event.target.value as StorageType)}>
               {STORAGE_TYPES.map((storageType) => (
-                <option key={storageType} value={storageType}>
-                  {storageTypeLabel(storageType)}
-                </option>
+                <option key={storageType} value={storageType}>{storageTypeLabel(storageType)}</option>
               ))}
             </select>
           </label>
@@ -207,9 +192,7 @@ export default function StorageManagementPage() {
       <section className="space-y-3">
         <div>
           <h2 className="text-xl font-bold tracking-[-0.02em] text-text">Aktuální místa</h2>
-          <p className="mt-1 text-sm text-text-muted">
-            Použitá místa raději přejmenujeme, než abychom mazali jejich historii.
-          </p>
+          <p className="mt-1 text-sm text-text-muted">Použité místo můžeš přejmenovat, ale jeho historii nemažeme.</p>
         </div>
 
         {dashboard.storageUnits.map((storage) => {
@@ -233,20 +216,9 @@ export default function StorageManagementPage() {
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <label className="min-w-0 flex-1">
                         <span className="sr-only">Nový název {storage.name}</span>
-                        <input
-                          className="input-field"
-                          value={editingName}
-                          onChange={(event) => setEditingName(event.target.value)}
-                          maxLength={120}
-                          autoFocus
-                        />
+                        <input className="input-field" value={editingName} onChange={(event) => setEditingName(event.target.value)} maxLength={120} autoFocus />
                       </label>
-                      <button
-                        type="button"
-                        className="button-primary"
-                        disabled={savingId === storage.id || !editingName.trim()}
-                        onClick={() => void renameStorage(storage.id)}
-                      >
+                      <button type="button" className="button-primary" disabled={savingId === storage.id || !editingName.trim()} onClick={() => void renameStorage(storage.id)}>
                         {savingId === storage.id ? 'Ukládám…' : 'Uložit'}
                       </button>
                       <button
@@ -268,11 +240,7 @@ export default function StorageManagementPage() {
                         <span className="text-sm text-text-muted">{storageTypeLabel(storage.type)}</span>
                       </div>
                       <p className="mt-1 text-sm text-text-muted">
-                        {referencedBatchCount === 0
-                          ? 'Zatím bez historie zásob'
-                          : referencedBatchCount === 1
-                            ? '1 balení v historii'
-                            : `${referencedBatchCount} balení v historii`}
+                        {referencedBatchCount === 0 ? 'Zatím nepoužité' : 'Místo už je v historii zásob'}
                       </p>
                     </>
                   )}
@@ -307,9 +275,7 @@ export default function StorageManagementPage() {
                   </div>
                 ) : null}
               </div>
-              {deleteBlockReason ? (
-                <p className="mt-3 text-xs leading-5 text-text-muted">{deleteBlockReason}</p>
-              ) : null}
+              {deleteBlockReason ? <p className="mt-3 text-xs leading-5 text-text-muted">{deleteBlockReason}</p> : null}
             </article>
           )
         })}
