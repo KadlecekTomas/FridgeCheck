@@ -10,13 +10,22 @@ import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
 import { formatExpiryUrgency, isBatchUsableForStock } from '@/domain/inventory/dashboard'
+import {
+  formatQuantity,
+  formatStockQuantity,
+  hasAtMostThreeDecimals,
+  packageCountForTotal,
+  totalForPackages,
+} from '@/domain/inventory/quantity'
 import { daysUntilExpiry } from '@/domain/expiry/expiry'
 import type { Tables } from '@/types/supabase-v2'
 
-const numberFormatter = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 })
-
-function quantity(value: number, unit: string) {
-  return `${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
+function productUsesPackages(product: Tables<'products'>) {
+  return Boolean(
+    product.package_quantity &&
+      product.package_quantity > 0 &&
+      product.package_unit === product.default_unit
+  )
 }
 
 export default function InventoryPage() {
@@ -44,7 +53,7 @@ export default function InventoryPage() {
     return (
       <EmptyState
         title="Nejdřív založ domácnost"
-        description="Zásoby vždy patří konkrétní domácnosti."
+        description="Pak bude jasné, do kterých zásob jídlo patří."
         href="/dashboard"
         action="Založit domácnost"
       />
@@ -57,9 +66,7 @@ export default function InventoryPage() {
         <div>
           <p className="text-sm font-medium text-primary">{activeHousehold.name}</p>
           <h1 className="mt-1 text-[30px] font-bold tracking-[-0.03em] text-text">Zásoby</h1>
-          <p className="mt-1 text-sm text-text-muted">
-            Produkty a jejich skutečná balení napříč lednicí, mrazákem i spíží.
-          </p>
+          <p className="mt-1 text-sm text-text-muted">Co máš doma, kde to je a co se blíží k datu na obalu.</p>
         </div>
         <Link href="/inventory/new" className="button-primary shrink-0">
           <Plus size={18} aria-hidden="true" />
@@ -69,46 +76,31 @@ export default function InventoryPage() {
 
       <label className="relative block max-w-lg">
         <span className="sr-only">Hledat v zásobách</span>
-        <Search
-          size={18}
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-          aria-hidden="true"
-        />
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Hledat produkt…"
-          className="input-field pl-10"
-          type="search"
-        />
+        <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" aria-hidden="true" />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Hledat jídlo…" className="input-field pl-10" type="search" />
       </label>
 
       {dashboard.error ? (
         <div className="rounded-2xl border border-danger/20 bg-danger/5 p-5">
           <p className="font-semibold text-danger">Zásoby se nepodařilo načíst.</p>
-          <button className="button-secondary mt-4" onClick={() => void dashboard.refresh()}>
-            Zkusit znovu
-          </button>
+          <p className="mt-1 text-sm text-text-muted">Nic se nezměnilo.</p>
+          <button className="button-secondary mt-4" onClick={() => void dashboard.refresh()}>Zkusit znovu</button>
         </div>
       ) : dashboard.loading ? (
         <InventorySkeleton />
       ) : dashboard.products.length === 0 ? (
         <EmptyState
           title="Zásoby jsou zatím prázdné"
-          description="Přidej první produkt ručně. Čtečku EAN vrátíme jako urychlení, ne jako podmínku."
+          description="Naskenuj čárový kód nebo přidej první jídlo ručně."
           href="/inventory/new"
           action="Přidat první jídlo"
         />
       ) : products.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-surface/60 p-6 text-sm text-text-muted">
-          Pro „{search}“ tu nic není.
-        </div>
+        <div className="rounded-2xl border border-dashed border-border bg-surface/60 p-6 text-sm text-text-muted">Pro „{search}“ tu nic není.</div>
       ) : (
         <div className="space-y-4">
           {products.map((product) => {
-            const batches = dashboard.batches.filter(
-              (batch) => batch.product_id === product.id && batch.status === 'active'
-            )
+            const batches = dashboard.batches.filter((batch) => batch.product_id === product.id && batch.status === 'active')
             const target = dashboard.stockTargets.find((item) => item.product_id === product.id)
             const currentQuantity = dashboard.batches
               .filter(
@@ -137,13 +129,12 @@ export default function InventoryPage() {
                       {product.brand ? <span className="text-sm text-text-muted">{product.brand}</span> : null}
                     </div>
                     <p className="mt-1 text-sm text-text-muted">
-                      Doma {quantity(currentQuantity, product.default_unit)} · {batches.length}{' '}
-                      {batches.length === 1 ? 'aktivní balení' : 'aktivní balení'}
+                      Doma {formatStockQuantity(currentQuantity, product.default_unit, product.package_quantity, product.package_unit)}
                     </p>
                     {target ? (
                       <p className="mt-1 text-sm font-medium text-primary">
-                        Minimum {quantity(target.minimum_quantity, target.unit)} · cíl{' '}
-                        {quantity(target.target_quantity, target.unit)}
+                        Dochází pod {formatStockQuantity(target.minimum_quantity, target.unit, product.package_quantity, product.package_unit)} · chci mít{' '}
+                        {formatStockQuantity(target.target_quantity, target.unit, product.package_quantity, product.package_unit)}
                       </p>
                     ) : null}
                   </div>
@@ -153,6 +144,8 @@ export default function InventoryPage() {
                       productName={product.name}
                       unit={product.default_unit}
                       availableQuantity={currentQuantity}
+                      packageQuantity={product.package_quantity}
+                      packageUnit={product.package_unit}
                       onConsumed={dashboard.refresh}
                     />
                     <button
@@ -162,8 +155,8 @@ export default function InventoryPage() {
                       aria-expanded={editorOpen}
                     >
                       <Target size={17} aria-hidden="true" />
-                      {target ? 'Upravit cíl' : 'Nastavit cíl'}
-                      {editorOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      {target ? 'Upravit zásobu' : 'Hlídání zásoby'}
+                      {editorOpen ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
                     </button>
                   </div>
                 </div>
@@ -197,22 +190,14 @@ export default function InventoryPage() {
                             <div key={batch.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                               <div className="min-w-0 flex-1">
                                 <span className="font-semibold text-text">
-                                  {quantity(batch.quantity, batch.unit)}
+                                  {formatStockQuantity(batch.quantity, batch.unit, product.package_quantity, product.package_unit)}
                                 </span>
                                 {storage ? <span className="text-text-muted"> · {storage.name}</span> : null}
                                 <div className="mt-1">
                                   {days === null ? (
                                     <span className="text-text-muted">bez data</span>
                                   ) : (
-                                    <span
-                                      className={
-                                        days < 0 && batch.expiry_type === 'use_by'
-                                          ? 'font-semibold text-danger'
-                                          : days <= 1
-                                            ? 'font-semibold text-warning'
-                                            : 'text-text-muted'
-                                      }
-                                    >
+                                    <span className={days < 0 && batch.expiry_type === 'use_by' ? 'font-semibold text-danger' : days <= 1 ? 'font-semibold text-warning' : 'text-text-muted'}>
                                       {formatExpiryUrgency(days, batch.expiry_type)}
                                     </span>
                                   )}
@@ -225,6 +210,8 @@ export default function InventoryPage() {
                                   productName={product.name}
                                   quantity={batch.quantity}
                                   unit={batch.unit}
+                                  packageQuantity={product.package_quantity}
+                                  packageUnit={product.package_unit}
                                   onCorrected={dashboard.refresh}
                                 />
                                 <DiscardBatchAction
@@ -233,6 +220,8 @@ export default function InventoryPage() {
                                   productName={product.name}
                                   quantity={batch.quantity}
                                   unit={batch.unit}
+                                  packageQuantity={product.package_quantity}
+                                  packageUnit={product.package_unit}
                                   onDiscarded={dashboard.refresh}
                                 />
                               </div>
@@ -241,9 +230,7 @@ export default function InventoryPage() {
                         })}
                     </div>
                   ) : (
-                    <div className="px-4 py-4 text-sm text-text-muted">
-                      Produkt nemá žádné aktivní balení.
-                    </div>
+                    <div className="px-4 py-4 text-sm text-text-muted">Teď nic doma nemáš.</div>
                   )}
                 </div>
               </article>
@@ -266,22 +253,48 @@ function TargetEditor({
   existing?: Tables<'stock_targets'>
   onSaved: () => Promise<void>
 }) {
-  const [minimum, setMinimum] = useState(String(existing?.minimum_quantity ?? 0))
-  const [target, setTarget] = useState(String(existing?.target_quantity ?? 0))
+  const usesPackages = productUsesPackages(product)
+  const packageQuantity = usesPackages ? product.package_quantity : null
+  const toInputValue = (value: number) => {
+    if (!packageQuantity) return value
+    return packageCountForTotal(value, packageQuantity) ?? 0
+  }
+  const [minimum, setMinimum] = useState(String(toInputValue(existing?.minimum_quantity ?? 0)))
+  const [target, setTarget] = useState(String(toInputValue(existing?.target_quantity ?? 0)))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const toStoredValue = (value: number) => {
+    if (!packageQuantity) return value
+    if (value === 0) return 0
+    return totalForPackages(value, packageQuantity)
+  }
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const minimumValue = Number(minimum)
-    const targetValue = Number(target)
+    const enteredMinimum = Number(minimum)
+    const enteredTarget = Number(target)
 
-    if (!Number.isFinite(minimumValue) || minimumValue < 0 || !Number.isFinite(targetValue)) {
-      setError('Zadej platná nezáporná množství.')
+    if (
+      !Number.isFinite(enteredMinimum) ||
+      enteredMinimum < 0 ||
+      !Number.isFinite(enteredTarget) ||
+      enteredTarget < 0 ||
+      !hasAtMostThreeDecimals(enteredMinimum) ||
+      !hasAtMostThreeDecimals(enteredTarget)
+    ) {
+      setError('Zadej platné nezáporné hodnoty s nejvýše třemi desetinnými místy.')
+      return
+    }
+
+    const minimumValue = toStoredValue(enteredMinimum)
+    const targetValue = toStoredValue(enteredTarget)
+    if (minimumValue === null || targetValue === null) {
+      setError('Množství se nepodařilo spočítat.')
       return
     }
     if (targetValue < minimumValue) {
-      setError('Cílová zásoba musí být alespoň stejně velká jako minimum.')
+      setError('To, co chceš mít doma, musí být alespoň stejné jako hranice „dochází“.')
       return
     }
 
@@ -299,7 +312,7 @@ function TargetEditor({
     )
 
     if (saveError) {
-      setError('Cílovou zásobu se nepodařilo uložit.')
+      setError('Hlídání zásoby se nepodařilo uložit.')
       setSaving(false)
       return
     }
@@ -308,73 +321,42 @@ function TargetEditor({
     setSaving(false)
   }
 
+  const suffix = usesPackages ? 'balení' : product.default_unit === 'pcs' ? 'ks' : product.default_unit
+
   return (
     <form onSubmit={submit} className="border-t border-border bg-primary-soft/45 p-4">
+      {usesPackages && packageQuantity && product.package_unit ? (
+        <p className="mb-3 text-sm text-text-muted">1 balení = {formatQuantity(packageQuantity, product.package_unit)}</p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <label>
-          <span className="mb-1.5 block text-sm font-semibold text-text">Dochází pod</span>
+          <span className="mb-1.5 block text-sm font-semibold text-text">Upozorni, když mám méně než</span>
           <div className="relative">
-            <input
-              className="input-field pr-12"
-              type="number"
-              min="0"
-              step="0.001"
-              value={minimum}
-              onChange={(event) => setMinimum(event.target.value)}
-              required
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">
-              {product.default_unit === 'pcs' ? 'ks' : product.default_unit}
-            </span>
+            <input className="input-field pr-20" type="number" min="0" step="0.001" value={minimum} onChange={(event) => setMinimum(event.target.value)} required />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">{suffix}</span>
           </div>
         </label>
         <label>
           <span className="mb-1.5 block text-sm font-semibold text-text">Chci mít doma</span>
           <div className="relative">
-            <input
-              className="input-field pr-12"
-              type="number"
-              min="0"
-              step="0.001"
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
-              required
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">
-              {product.default_unit === 'pcs' ? 'ks' : product.default_unit}
-            </span>
+            <input className="input-field pr-20" type="number" min="0" step="0.001" value={target} onChange={(event) => setTarget(event.target.value)} required />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">{suffix}</span>
           </div>
         </label>
-        <button type="submit" disabled={saving} className="button-primary">
-          {saving ? 'Ukládám…' : 'Uložit'}
-        </button>
+        <button type="submit" disabled={saving} className="button-primary">{saving ? 'Ukládám…' : 'Uložit'}</button>
       </div>
-      {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm text-danger" role="alert">{error}</p> : null}
     </form>
   )
 }
 
-function EmptyState({
-  title,
-  description,
-  href,
-  action,
-}: {
-  title: string
-  description: string
-  href: string
-  action: string
-}) {
+function EmptyState({ title, description, href, action }: { title: string; description: string; href: string; action: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-surface/70 p-7 text-center">
-      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-        <PackageOpen size={22} aria-hidden="true" />
-      </span>
+      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary"><PackageOpen size={22} aria-hidden="true" /></span>
       <h2 className="mt-4 text-lg font-bold text-text">{title}</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-muted">{description}</p>
-      <Link href={href} className="button-primary mt-5">
-        {action}
-      </Link>
+      <Link href={href} className="button-primary mt-5">{action}</Link>
     </div>
   )
 }
@@ -382,9 +364,7 @@ function EmptyState({
 function InventorySkeleton() {
   return (
     <div className="space-y-4" aria-busy="true">
-      {[0, 1, 2].map((key) => (
-        <div key={key} className="h-32 animate-pulse rounded-2xl bg-surface-muted" />
-      ))}
+      {[0, 1, 2].map((key) => <div key={key} className="h-32 animate-pulse rounded-2xl bg-surface-muted" />)}
     </div>
   )
 }
