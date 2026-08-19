@@ -7,8 +7,8 @@ import { supabaseV2Browser } from '@/lib/auth/v2-client'
 
 const numberFormatter = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 3 })
 
-function formatQuantity(value: number, unit: string) {
-  return `${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
+function formatQuantity(value: number, unit: string, estimated = false) {
+  return `${estimated ? '~' : ''}${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
 }
 
 function isThreeDecimalQuantity(value: number) {
@@ -20,6 +20,7 @@ export function ConsumeProductAction({
   productName,
   unit,
   availableQuantity,
+  availableQuantityEstimated = false,
   onConsumed,
   compact = false,
 }: {
@@ -27,6 +28,7 @@ export function ConsumeProductAction({
   productName: string
   unit: string
   availableQuantity: number
+  availableQuantityEstimated?: boolean
   onConsumed: () => void | Promise<void>
   compact?: boolean
 }) {
@@ -78,7 +80,7 @@ export function ConsumeProductAction({
       return
     }
     if (value > availableQuantity) {
-      setError(`Použitelně je doma jen ${formatQuantity(availableQuantity, unit)}.`)
+      setError(`Použitelně je doma jen ${formatQuantity(availableQuantity, unit, availableQuantityEstimated)}.`)
       return
     }
 
@@ -182,13 +184,15 @@ export function ConsumeProductAction({
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-primary-soft/55 px-3 py-2.5 text-sm">
-                <span className="text-text-muted">Použitelně doma</span>
+                <span className="text-text-muted">
+                  Použitelně doma{availableQuantityEstimated ? ' · odhad' : ''}
+                </span>
                 <button
                   type="button"
                   className="font-semibold text-primary underline-offset-4 hover:underline"
                   onClick={() => setQuantity(String(availableQuantity))}
                 >
-                  Všechno · {formatQuantity(availableQuantity, unit)}
+                  Všechno · {formatQuantity(availableQuantity, unit, availableQuantityEstimated)}
                 </button>
               </div>
 
