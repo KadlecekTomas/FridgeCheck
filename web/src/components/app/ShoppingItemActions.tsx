@@ -30,14 +30,19 @@ export function ShoppingItemActions({
   const nameId = useId()
   const quantityId = useId()
   const nameRef = useRef<HTMLInputElement>(null)
+  const quantityRef = useRef<HTMLInputElement>(null)
 
   const busy = submitting || deleting
+  const isDerived = item.source === 'derived'
 
   useEffect(() => {
     if (!open) return
-    const frame = window.requestAnimationFrame(() => nameRef.current?.focus())
+    const frame = window.requestAnimationFrame(() => {
+      if (isDerived) quantityRef.current?.focus()
+      else nameRef.current?.focus()
+    })
     return () => window.cancelAnimationFrame(frame)
-  }, [open])
+  }, [open, isDerived])
 
   useEffect(() => {
     if (!open) return
@@ -67,7 +72,7 @@ export function ShoppingItemActions({
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const normalizedName = name.trim()
+    const normalizedName = isDerived ? item.name : name.trim()
 
     if (!normalizedName) {
       setError('Název položky nesmí být prázdný.')
@@ -97,7 +102,7 @@ export function ShoppingItemActions({
     const { error: updateError } = await supabaseV2Browser()
       .from('shopping_list_items')
       .update({
-        name: normalizedName,
+        ...(isDerived ? {} : { name: normalizedName }),
         ...(item.quantity === null ? {} : { quantity: quantityValue }),
       })
       .eq('id', item.id)
@@ -173,7 +178,7 @@ export function ShoppingItemActions({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-primary">
-                  {item.source === 'derived' ? 'Doporučení upravené tebou' : 'Ruční položka'}
+                  {isDerived ? 'Doporučení upravené tebou' : 'Ruční položka'}
                 </p>
                 <h2 id={titleId} className="mt-1 text-xl font-bold tracking-[-0.02em] text-text">
                   Upravit položku
@@ -191,24 +196,33 @@ export function ShoppingItemActions({
             </div>
 
             <p id={descriptionId} className="mt-3 text-sm leading-6 text-text-muted">
-              {item.source === 'derived'
-                ? 'Změna této položky upraví jen tvoje nákupní rozhodnutí. Zásoba ani nastavený cíl se nezmění.'
+              {isDerived
+                ? 'Uprav jen množství k nákupu. Produkt, zásoba ani nastavený cíl se nezmění.'
                 : 'Uprav položku tak, aby seznam odpovídal tomu, co chceš skutečně koupit.'}
             </p>
 
             <form onSubmit={submit} className="mt-5 space-y-4">
-              <div>
-                <label htmlFor={nameId} className="field-label">Název</label>
-                <input
-                  id={nameId}
-                  ref={nameRef}
-                  className="input-field"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  maxLength={200}
-                  required
-                />
-              </div>
+              {isDerived ? (
+                <div>
+                  <p className="field-label">Produkt</p>
+                  <p className="rounded-xl border border-border bg-surface-muted px-3 py-2.5 font-medium text-text">
+                    {item.name}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor={nameId} className="field-label">Název</label>
+                  <input
+                    id={nameId}
+                    ref={nameRef}
+                    className="input-field"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    maxLength={200}
+                    required
+                  />
+                </div>
+              )}
 
               {item.quantity !== null && item.unit ? (
                 <div>
@@ -216,6 +230,7 @@ export function ShoppingItemActions({
                   <div className="relative">
                     <input
                       id={quantityId}
+                      ref={quantityRef}
                       className="input-field pr-14"
                       type="number"
                       min="0.001"
@@ -244,7 +259,7 @@ export function ShoppingItemActions({
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || !name.trim() || (item.quantity !== null && !quantity)}
+                  disabled={submitting || (!isDerived && !name.trim()) || (item.quantity !== null && !quantity)}
                   className="button-primary flex-1"
                 >
                   <Save size={17} aria-hidden="true" />
