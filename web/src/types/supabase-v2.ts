@@ -158,6 +158,8 @@ export type Database = {
           id: string
           image_url: string | null
           name: string
+          package_quantity: number | null
+          package_unit: Database["public"]["Enums"]["inventory_unit"] | null
           updated_at: string
         }
         Insert: {
@@ -170,6 +172,8 @@ export type Database = {
           id?: string
           image_url?: string | null
           name: string
+          package_quantity?: number | null
+          package_unit?: Database["public"]["Enums"]["inventory_unit"] | null
           updated_at?: string
         }
         Update: {
@@ -182,6 +186,8 @@ export type Database = {
           id?: string
           image_url?: string | null
           name?: string
+          package_quantity?: number | null
+          package_unit?: Database["public"]["Enums"]["inventory_unit"] | null
           updated_at?: string
         }
         Relationships: []
@@ -336,6 +342,25 @@ export type Database = {
       }
       create_household: {
         Args: { household_name: string }
+        Returns: string
+      }
+      create_or_add_product_batch: {
+        Args: {
+          p_brand?: string
+          p_category?: string
+          p_ean_code?: string
+          p_expiry_date?: string
+          p_expiry_type?: Database["public"]["Enums"]["expiry_type"]
+          p_household_id: string
+          p_image_url?: string
+          p_name: string
+          p_package_quantity?: number
+          p_package_unit?: Database["public"]["Enums"]["inventory_unit"]
+          p_purchased_at?: string
+          p_quantity: number
+          p_storage_unit_id: string
+          p_unit: Database["public"]["Enums"]["inventory_unit"]
+        }
         Returns: string
       }
       create_product_with_batch: {

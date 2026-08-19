@@ -8,7 +8,7 @@ A change is not considered safe because it compiles or because a single happy-pa
 
 ## Current executable baseline
 
-The web package has an initial pure-domain unit-test baseline using the Node.js 24 built-in `node:test` runner and native TypeScript execution.
+The web package uses the Node.js 24 built-in `node:test` runner and native TypeScript execution for pure domain tests.
 
 Run it with:
 
@@ -17,7 +17,7 @@ cd web
 npm test
 ```
 
-Web CI runs this unit suite as a blocking pull-request step. The first covered domain is expiry/calendar-day classification. This does **not** mean the broader testing contract is complete: integration tests, RLS/database tests, browser E2E and coverage gates are still pending hardening stages.
+Web CI runs the unit suite, critical-domain coverage, lint, typecheck, production build and dependency audit as blocking pull-request steps. Database/RLS behavior and production-browser flows are covered by their dedicated blocking workflows.
 
 The zero-dependency runner is intentional for small pure domain modules. Introduce a third-party test framework only when it provides concrete value that the built-in runner cannot provide cleanly.
 
@@ -30,6 +30,8 @@ Use for pure domain behavior and deterministic utilities.
 Mandatory examples:
 
 - quantity normalization/conversion
+- package-count ↔ canonical-quantity conversion
+- retail-package replenishment rounding
 - expiry classification
 - FEFO ordering
 - usable-stock calculation
@@ -52,6 +54,8 @@ Examples:
 - database constraints
 - migration/backfill validation
 - Open Food Facts adapter mapping/failure handling
+- repeated household EAN resolution and duplicate prevention
+- package metadata constraints
 
 Integration tests must cover both successful and rejected operations.
 
@@ -66,15 +70,20 @@ Core E2E flows must include at minimum:
 3. create/access storage unit
 4. add product manually
 5. add product via barcode metadata with a controlled external response
-6. add multiple batches of the same product with different expiry dates
-7. view urgent expiry state
-8. consume stock and verify FEFO behavior
-9. correct inventory quantity
-10. discard/waste stock
-11. set stock target
-12. see derived replenishment need
-13. convert/confirm recommendation in shopping list
-14. verify an unauthorized household cannot be accessed
+6. scan the same household-known barcode again and add stock without metadata re-entry or another external lookup
+7. save a valid barcode unknown to the external provider manually and recognize it locally on the next scan
+8. remain usable when the external barcode provider is unavailable
+9. remain usable through manual barcode entry when camera access is denied/unavailable
+10. add packaged stock such as `24 × 100 g` without requiring manual multiplication and preserve package-aware interaction through consumption
+11. add multiple batches of the same product with different expiry dates
+12. view urgent expiry state
+13. consume stock and verify FEFO behavior
+14. correct inventory quantity
+15. discard/waste stock
+16. set stock target, including package-count input for packaged goods
+17. see derived replenishment need, including whole-retail-package rounding
+18. convert/confirm and override a recommendation in the shopping list
+19. verify an unauthorized household cannot be accessed
 
 As features evolve, update this list rather than allowing critical behavior to exist without E2E coverage.
 
@@ -90,7 +99,7 @@ A bug fix without a regression test requires an explicit explanation in the PR.
 
 Coverage is a floor, not a goal.
 
-Target policy once the test suite is established:
+Target policy:
 
 - changed/new domain modules: >= 90% branch coverage
 - critical inventory, expiry and replenishment pure logic: 100% branch coverage where practical
@@ -137,7 +146,9 @@ Use fixtures or request interception for deterministic tests.
 Test:
 
 - known product
+- known product with package metadata
 - unknown EAN
+- repeated locally known EAN without an unnecessary external request
 - incomplete product metadata
 - timeout/network failure
 - malformed response
@@ -155,6 +166,8 @@ Test at least:
 - unrelated user cannot mutate it
 - forged household/storage IDs do not bypass policy
 - service/admin pathways are isolated from client credentials
+- repeated EAN writes cannot create duplicate Product definitions inside one household
+- package metadata cannot encode incompatible units or invalid quantities
 
 ## Migration testing
 

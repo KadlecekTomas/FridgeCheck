@@ -11,7 +11,13 @@ import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
 import { normalizeBarcode, type OpenFoodFactsProduct } from '@/domain/products/openFoodFacts'
-import type { Enums } from '@/types/supabase-v2'
+import {
+  formatPackageCount,
+  formatQuantity,
+  hasAtMostThreeDecimals,
+  totalForPackages,
+} from '@/domain/inventory/quantity'
+import type { Enums, Tables } from '@/types/supabase-v2'
 
 type InventoryUnit = Enums<'inventory_unit'>
 type ExpiryType = Enums<'expiry_type'>
@@ -30,6 +36,15 @@ const UNITS: { value: InventoryUnit; label: string }[] = [
   { value: 'l', label: 'l' },
 ]
 
+function hasPackage(product: Tables<'products'> | null) {
+  return Boolean(
+    product &&
+      product.package_quantity &&
+      product.package_quantity > 0 &&
+      product.package_unit === product.default_unit
+  )
+}
+
 export default function NewInventoryPage() {
   const router = useRouter()
   const { activeHousehold, activeHouseholdId, loading: householdLoading } = useHousehold()
@@ -44,8 +59,12 @@ export default function NewInventoryPage() {
   const [lookupLoading, setLookupLoading] = useState(false)
   const [lookupError, setLookupError] = useState<string | null>(null)
   const [lookupStatus, setLookupStatus] = useState<string | null>(null)
+  const [entryMode, setEntryMode] = useState<'amount' | 'packages'>('amount')
   const [quantity, setQuantity] = useState('1')
   const [unit, setUnit] = useState<InventoryUnit>('pcs')
+  const [packageCount, setPackageCount] = useState('1')
+  const [packageQuantity, setPackageQuantity] = useState('1')
+  const [packageUnit, setPackageUnit] = useState<InventoryUnit>('pcs')
   const [storageUnitId, setStorageUnitId] = useState('')
   const [expiryType, setExpiryType] = useState<ExpiryType>('unknown')
   const [expiryDate, setExpiryDate] = useState('')
@@ -53,7 +72,7 @@ export default function NewInventoryPage() {
   const [error, setError] = useState<string | null>(null)
   const productSelectId = useId()
   const unitSelectId = useId()
-  const unitHelpId = useId()
+  const packageUnitSelectId = useId()
   const eanInputId = useId()
 
   const selectedProduct = useMemo(
@@ -61,12 +80,56 @@ export default function NewInventoryPage() {
     [dashboard.products, productId]
   )
   const resolvedStorageId = storageUnitId || dashboard.storageUnits[0]?.id || ''
-  const resolvedUnit = mode === 'existing' && selectedProduct ? selectedProduct.default_unit : unit
+  const existingIsPackaged = hasPackage(selectedProduct)
+  const resolvedUnit = mode === 'existing' && selectedProduct
+    ? selectedProduct.default_unit
+    : entryMode === 'packages'
+      ? packageUnit
+      : unit
+  const resolvedPackageQuantity = existingIsPackaged
+    ? selectedProduct?.package_quantity ?? null
+    : entryMode === 'packages'
+      ? Number(packageQuantity)
+      : null
+  const resolvedPackageUnit = existingIsPackaged
+    ? selectedProduct?.package_unit ?? null
+    : entryMode === 'packages'
+      ? packageUnit
+      : null
+  const usesPackages = existingIsPackaged || (mode === 'new' && entryMode === 'packages')
+
+  const resetExternalProduct = () => {
+    setName('')
+    setBrand('')
+    setCategory('')
+    setImageUrl(null)
+    setEntryMode('amount')
+    setQuantity('1')
+    setUnit('pcs')
+    setPackageCount('1')
+    setPackageQuantity('1')
+    setPackageUnit('pcs')
+  }
+
+  const selectKnownProduct = (product: Tables<'products'>, normalizedEan: string) => {
+    setMode('existing')
+    setProductId(product.id)
+    setEan(normalizedEan)
+    setPackageCount('1')
+    setQuantity('1')
+    setLookupError(null)
+    setImageUrl(product.image_url)
+    setLookupStatus(
+      hasPackage(product)
+        ? `Tenhle kód už známe jako ${product.name}. Stačí zadat počet balení.`
+        : `Tenhle kód už známe jako ${product.name}. Stačí zadat množství.`
+    )
+  }
 
   const lookupEan = async (candidate = ean) => {
     const normalized = normalizeBarcode(candidate)
     if (!normalized) {
-      setLookupError('EAN musí obsahovat 8 až 14 číslic.')
+      setLookupError('Čárový kód musí mít 8 až 14 číslic.')
       setLookupStatus(null)
       return
     }
@@ -75,33 +138,66 @@ export default function NewInventoryPage() {
     setLookupLoading(true)
     setLookupError(null)
     setLookupStatus(null)
+    setError(null)
+
+    const localMatches = dashboard.products.filter((product) => product.ean_code === normalized)
+    if (localMatches.length === 1) {
+      selectKnownProduct(localMatches[0], normalized)
+      setLookupLoading(false)
+      return
+    }
+    if (localMatches.length > 1) {
+      setLookupError('Tenhle kód je uložený u více produktů. Vyber produkt ručně a data nesmažeme.')
+      setLookupLoading(false)
+      return
+    }
+
+    setMode('new')
+    setProductId('')
+    resetExternalProduct()
 
     try {
       const response = await fetch(`/api/products/ean?ean=${encodeURIComponent(normalized)}`)
       const payload = (await response.json()) as ProductLookupPayload
 
-      if (response.status === 404 || !payload.found || !payload.product) {
-        setLookupError('Produkt v Open Food Facts zatím není. Údaje můžeš vyplnit ručně.')
+      if (response.status === 404) {
+        setLookupStatus('Tenhle kód zatím neznáme. Doplň název jednou a příště ho domácnost pozná sama.')
         return
       }
 
       if (!response.ok) {
-        setLookupError('Open Food Facts teď neodpovídá. Ruční zadání dál funguje.')
+        setLookupStatus('Online databáze teď neodpovídá. Kód si přesto můžeš uložit ručně a příště ho poznáme.')
+        return
+      }
+
+      if (!payload.found || !payload.product) {
+        setLookupStatus('Tenhle kód zatím neznáme. Doplň název jednou a příště ho domácnost pozná sama.')
         return
       }
 
       setEan(payload.product.ean)
-      if (payload.product.name) setName(payload.product.name)
-      if (payload.product.brand) setBrand(payload.product.brand)
-      if (payload.product.category) setCategory(payload.product.category)
+      setName(payload.product.name)
+      setBrand(payload.product.brand)
+      setCategory(payload.product.category)
       setImageUrl(payload.product.imageUrl)
+
+      if (payload.product.packageQuantity && payload.product.packageUnit) {
+        setEntryMode('packages')
+        setPackageQuantity(String(payload.product.packageQuantity))
+        setPackageUnit(payload.product.packageUnit)
+        setUnit(payload.product.packageUnit)
+        setPackageCount('1')
+      }
+
       setLookupStatus(
         payload.product.name
-          ? 'Údaje jsou předvyplněné. Před uložením je můžeš libovolně upravit.'
-          : 'Produkt byl nalezen, ale chybí mu název. Doplň údaje ručně.'
+          ? payload.product.packageQuantity && payload.product.packageUnit
+            ? `Nalezeno. Jedno balení má ${formatQuantity(payload.product.packageQuantity, payload.product.packageUnit)} — zadej už jen kolik balení máš.`
+            : 'Nalezeno. Zkontroluj název a zadej množství.'
+          : 'Kód jsme našli, ale název chybí. Doplň ho jednou a příště už zůstane uložený.'
       )
     } catch {
-      setLookupError('Open Food Facts teď neodpovídá. Ruční zadání dál funguje.')
+      setLookupStatus('Online databáze teď neodpovídá. Kód si přesto můžeš uložit ručně a příště ho poznáme.')
     } finally {
       setLookupLoading(false)
     }
@@ -119,19 +215,40 @@ export default function NewInventoryPage() {
     event.preventDefault()
     if (!activeHousehold || !resolvedStorageId) return
 
-    const quantityValue = Number(quantity)
-    if (!Number.isFinite(quantityValue) || quantityValue <= 0) {
-      setError('Množství musí být větší než nula.')
-      return
+    let quantityValue: number
+    if (usesPackages) {
+      const countValue = Number(packageCount)
+      const packageValue = resolvedPackageQuantity
+      if (!Number.isFinite(countValue) || countValue <= 0 || !hasAtMostThreeDecimals(countValue)) {
+        setError('Počet balení musí být větší než nula a mít nejvýše tři desetinná místa.')
+        return
+      }
+      if (!packageValue || !Number.isFinite(packageValue) || packageValue <= 0 || !hasAtMostThreeDecimals(packageValue)) {
+        setError('Velikost jednoho balení musí být větší než nula a mít nejvýše tři desetinná místa.')
+        return
+      }
+      const total = totalForPackages(countValue, packageValue)
+      if (total === null) {
+        setError('Množství se nepodařilo spočítat. Zkontroluj počet a velikost balení.')
+        return
+      }
+      quantityValue = total
+    } else {
+      quantityValue = Number(quantity)
+      if (!Number.isFinite(quantityValue) || quantityValue <= 0 || !hasAtMostThreeDecimals(quantityValue)) {
+        setError('Množství musí být větší než nula a mít nejvýše tři desetinná místa.')
+        return
+      }
     }
+
     if (expiryType !== 'unknown' && !expiryDate) {
-      setError('Pro zvolený typ expirace vyber datum.')
+      setError('Vyber datum, nebo nech „Bez známého data“.')
       return
     }
 
     const normalizedEan = ean.trim() ? normalizeBarcode(ean) : null
     if (ean.trim() && !normalizedEan) {
-      setError('EAN musí obsahovat 8 až 14 číslic.')
+      setError('Čárový kód musí mít 8 až 14 číslic.')
       return
     }
 
@@ -153,27 +270,35 @@ export default function NewInventoryPage() {
               p_unit: selectedProduct.default_unit,
               ...expiryArgs,
             })
-          : { data: null, error: new Error('Vyber produkt.') }
-        : await supabase.rpc('create_product_with_batch', {
+          : { data: null, error: new Error('missing_product') }
+        : await supabase.rpc('create_or_add_product_batch', {
             p_household_id: activeHousehold.id,
             p_storage_unit_id: resolvedStorageId,
             p_name: name.trim(),
             p_quantity: quantityValue,
-            p_unit: unit,
+            p_unit: resolvedUnit,
             p_brand: brand.trim() || undefined,
             p_ean_code: normalizedEan || undefined,
             p_category: category.trim() || undefined,
             p_image_url: imageUrl || undefined,
+            p_package_quantity: usesPackages ? resolvedPackageQuantity ?? undefined : undefined,
+            p_package_unit: usesPackages ? (resolvedPackageUnit as InventoryUnit) : undefined,
             ...expiryArgs,
           })
 
     if (result.error || !result.data) {
-      setError(result.error?.message || 'Jídlo se nepodařilo uložit.')
+      setError('Jídlo se nepodařilo uložit. Zásoba zůstala beze změny; zkus to prosím znovu.')
       setSubmitting(false)
       return
     }
 
-    toast.success(mode === 'existing' ? 'Další balení je uložené.' : 'Jídlo je uložené.')
+    toast.success(
+      usesPackages
+        ? `${formatPackageCount(Number(packageCount))} uloženo.`
+        : mode === 'existing'
+          ? 'Další zásoba je uložená.'
+          : 'Jídlo je uložené.'
+    )
     router.push('/inventory')
     router.refresh()
   }
@@ -182,12 +307,22 @@ export default function NewInventoryPage() {
     return <div className="h-80 animate-pulse rounded-2xl bg-surface-muted" aria-busy="true" />
   }
 
+  if (dashboard.error) {
+    return (
+      <div className="mx-auto max-w-lg rounded-2xl border border-danger/20 bg-surface p-6">
+        <h1 className="text-xl font-bold text-text">Zásoby se nepodařilo načíst</h1>
+        <p className="mt-2 text-sm text-text-muted">Nic se nezměnilo. Zkus načtení znovu.</p>
+        <button className="button-secondary mt-5" onClick={() => void dashboard.refresh()}>Zkusit znovu</button>
+      </div>
+    )
+  }
+
   if (!activeHousehold) {
     return (
       <div className="mx-auto max-w-lg rounded-2xl border border-border bg-surface p-6">
         <h1 className="text-xl font-bold text-text">Nejdřív založ domácnost</h1>
-        <p className="mt-2 text-sm text-text-muted">Bez domácnosti nemá zásoba vlastníka ani bezpečnostní hranici.</p>
-        <Link href="/dashboard" className="button-primary mt-5">Zpět na domů</Link>
+        <p className="mt-2 text-sm text-text-muted">Pak bude jasné, do kterých zásob jídlo patří.</p>
+        <Link href="/dashboard" className="button-primary mt-5">Zpět domů</Link>
       </div>
     )
   }
@@ -195,10 +330,9 @@ export default function NewInventoryPage() {
   if (dashboard.storageUnits.length === 0) {
     return (
       <div className="mx-auto max-w-lg rounded-2xl border border-danger/20 bg-surface p-6">
-        <h1 className="text-xl font-bold text-text">Chybí úložné místo</h1>
-        <p className="mt-2 text-sm text-text-muted">
-          Přidání jídla je záměrně zastavené, dokud není jasné, kam fyzicky patří.
-        </p>
+        <h1 className="text-xl font-bold text-text">Chybí místo pro jídlo</h1>
+        <p className="mt-2 text-sm text-text-muted">Přidej lednici, mrazák nebo spíž a pak pokračuj.</p>
+        <Link href="/more/storage" className="button-primary mt-5">Přidat úložné místo</Link>
       </div>
     )
   }
@@ -219,113 +353,122 @@ export default function NewInventoryPage() {
         </div>
         <h1 className="mt-5 text-[28px] font-bold tracking-[-0.03em] text-text">Přidat jídlo</h1>
         <p className="mt-2 text-sm leading-6 text-text-muted">
-          EAN může předvyplnit produkt. Balení pak říká, kolik toho doma skutečně je a do kdy.
+          Nejrychlejší je čárový kód. Když ho neznáme, údaje doplníš jednou a příště už si je domácnost pamatuje.
         </p>
 
         {dashboard.products.length > 0 ? (
-          <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl bg-surface-muted p-1.5" role="group" aria-label="Typ přidání">
+          <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl bg-surface-muted p-1.5" role="group" aria-label="Co přidáváš">
             <button
               type="button"
-              onClick={() => setMode('new')}
+              onClick={() => {
+                setMode('new')
+                setProductId('')
+                setLookupStatus(null)
+              }}
               className={`min-h-11 rounded-xl px-3 text-sm font-semibold transition ${
                 mode === 'new' ? 'bg-surface text-primary shadow-sm' : 'text-text-muted hover:text-text'
               }`}
             >
-              Nový produkt
+              Nové jídlo
             </button>
             <button
               type="button"
-              onClick={() => setMode('existing')}
+              onClick={() => {
+                setMode('existing')
+                setLookupStatus(null)
+              }}
               className={`min-h-11 rounded-xl px-3 text-sm font-semibold transition ${
                 mode === 'existing' ? 'bg-surface text-primary shadow-sm' : 'text-text-muted hover:text-text'
               }`}
             >
-              Další balení
+              Už ho znám
             </button>
           </div>
         ) : null}
 
         <form onSubmit={submit} className="mt-6 space-y-5">
+          <div className="rounded-2xl border border-primary/15 bg-primary-soft/35 p-4">
+            <label htmlFor={eanInputId} className="field-label">Čárový kód <span className="font-normal text-text-muted">volitelně</span></label>
+            <input
+              id={eanInputId}
+              className="input-field"
+              value={ean}
+              onChange={(event) => {
+                setEan(event.target.value)
+                setLookupError(null)
+                setLookupStatus(null)
+              }}
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="např. 859…"
+              maxLength={20}
+              autoFocus
+            />
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <BarcodeScannerAction onDetected={handleScannedBarcode} disabled={lookupLoading} />
+              <button
+                type="button"
+                className="button-secondary shrink-0"
+                onClick={() => void lookupEan()}
+                disabled={lookupLoading || !ean.trim()}
+              >
+                <Search size={17} aria-hidden="true" />
+                {lookupLoading ? 'Hledám…' : 'Najít podle kódu'}
+              </button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-text-muted">
+              Nejdřív hledáme mezi tvými uloženými produkty. Teprve nový kód zkusíme dohledat online.
+            </p>
+            {lookupStatus ? <p className="mt-2 text-sm font-medium text-primary" role="status">{lookupStatus}</p> : null}
+            {lookupError ? <p className="mt-2 text-sm text-warning" role="status">{lookupError}</p> : null}
+          </div>
+
           {mode === 'existing' && dashboard.products.length > 0 ? (
             <div>
-              <label htmlFor={productSelectId} className="field-label">Produkt</label>
+              <label htmlFor={productSelectId} className="field-label">Co přidáváš?</label>
               <select
                 id={productSelectId}
                 className="input-field"
                 value={productId}
-                onChange={(event) => setProductId(event.target.value)}
+                onChange={(event) => {
+                  setProductId(event.target.value)
+                  const product = dashboard.products.find((item) => item.id === event.target.value)
+                  if (product?.ean_code) setEan(product.ean_code)
+                  setPackageCount('1')
+                  setQuantity('1')
+                }}
                 required
               >
-                <option value="">Vyber produkt</option>
+                <option value="">Vyber jídlo</option>
                 {dashboard.products.map((product) => (
                   <option key={product.id} value={product.id}>
                     {product.name}{product.brand ? ` · ${product.brand}` : ''}
                   </option>
                 ))}
               </select>
+              {selectedProduct ? (
+                <p className="mt-2 text-sm text-text-muted">
+                  {hasPackage(selectedProduct)
+                    ? `1 balení = ${formatQuantity(selectedProduct.package_quantity!, selectedProduct.package_unit!)}`
+                    : `Sledujeme v jednotce ${selectedProduct.default_unit === 'pcs' ? 'kusy' : selectedProduct.default_unit}.`}
+                </p>
+              ) : null}
             </div>
           ) : (
             <>
-              <div className="rounded-2xl border border-primary/15 bg-primary-soft/35 p-4">
-                <label htmlFor={eanInputId} className="field-label">EAN / čárový kód</label>
-                <input
-                  id={eanInputId}
-                  className="input-field"
-                  value={ean}
-                  onChange={(event) => {
-                    setEan(event.target.value)
-                    setLookupError(null)
-                    setLookupStatus(null)
-                    setImageUrl(null)
-                  }}
-                  inputMode="numeric"
-                  autoComplete="off"
-                  placeholder="např. 859…"
-                  maxLength={20}
-                  autoFocus
-                />
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <BarcodeScannerAction
-                    onDetected={handleScannedBarcode}
-                    disabled={lookupLoading}
-                  />
-                  <button
-                    type="button"
-                    className="button-secondary shrink-0"
-                    onClick={() => void lookupEan()}
-                    disabled={lookupLoading || !ean.trim()}
-                  >
-                    <Search size={17} aria-hidden="true" />
-                    {lookupLoading ? 'Hledám…' : 'Načíst údaje'}
-                  </button>
-                </div>
-                <p className="mt-2 text-xs leading-5 text-text-muted">
-                  Naskenuj kód kamerou nebo ho napiš. Když produkt nenajdeme, pokračuj ručně.
-                </p>
-                {lookupStatus ? <p className="mt-2 text-sm font-medium text-primary">{lookupStatus}</p> : null}
-                {lookupError ? <p className="mt-2 text-sm text-warning" role="status">{lookupError}</p> : null}
-                <a
-                  href="https://world.openfoodfacts.org"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 inline-block text-xs font-medium text-text-muted underline underline-offset-2 hover:text-text"
-                >
-                  Produktová data: Open Food Facts
-                </a>
-              </div>
-
               {imageUrl ? (
                 <div className="flex items-center gap-4 rounded-2xl border border-border bg-canvas p-3">
                   <Image
                     src={imageUrl}
-                    alt={name ? `Náhled produktu ${name}` : 'Náhled produktu z Open Food Facts'}
+                    alt={name ? `Náhled produktu ${name}` : 'Náhled produktu'}
                     width={88}
                     height={88}
                     className="h-20 w-20 shrink-0 rounded-xl bg-white object-contain"
                   />
-                  <p className="text-sm leading-6 text-text-muted">
-                    Obrázek je jen pomůcka k rozpoznání produktu. Množství a expiraci vždy zadáváš pro konkrétní balení doma.
-                  </p>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-text">{name || 'Produkt bez názvu'}</p>
+                    {brand ? <p className="mt-1 text-sm text-text-muted">{brand}</p> : null}
+                  </div>
                 </div>
               ) : null}
 
@@ -335,88 +478,150 @@ export default function NewInventoryPage() {
                   className="input-field"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder="např. Vejce"
+                  placeholder="např. Eidam 30 %"
                   maxLength={200}
                   required
                 />
               </label>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="field-label">Značka <span className="font-normal text-text-muted">volitelně</span></span>
-                  <input
-                    className="input-field"
-                    value={brand}
-                    onChange={(event) => setBrand(event.target.value)}
-                    placeholder="např. Albert"
-                    maxLength={200}
-                  />
-                </label>
-                <label className="block">
-                  <span className="field-label">Kategorie <span className="font-normal text-text-muted">volitelně</span></span>
-                  <input
-                    className="input-field"
-                    value={category}
-                    onChange={(event) => setCategory(event.target.value)}
-                    placeholder="např. Jogurty"
-                    maxLength={200}
-                  />
-                </label>
-              </div>
+
+              <details className="rounded-2xl border border-border bg-canvas/50 px-4 py-3">
+                <summary className="cursor-pointer text-sm font-semibold text-text">Upřesnit značku nebo kategorii</summary>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="field-label">Značka <span className="font-normal text-text-muted">volitelně</span></span>
+                    <input className="input-field" value={brand} onChange={(event) => setBrand(event.target.value)} maxLength={200} />
+                  </label>
+                  <label className="block">
+                    <span className="field-label">Kategorie <span className="font-normal text-text-muted">volitelně</span></span>
+                    <input className="input-field" value={category} onChange={(event) => setCategory(event.target.value)} maxLength={200} />
+                  </label>
+                </div>
+              </details>
             </>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="field-label">Množství</span>
-              <input
-                className="input-field"
-                type="number"
-                min="0.001"
-                step="0.001"
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
-                required
-              />
-            </label>
-            <div>
-              <label htmlFor={unitSelectId} className="field-label">Jednotka</label>
-              <select
-                id={unitSelectId}
-                className="input-field"
-                value={resolvedUnit}
-                onChange={(event) => setUnit(event.target.value as InventoryUnit)}
-                disabled={mode === 'existing'}
-                aria-describedby={mode === 'existing' ? unitHelpId : undefined}
-              >
-                {UNITS.map((item) => (
-                  <option key={item.value} value={item.value}>{item.label}</option>
-                ))}
-              </select>
-              {mode === 'existing' ? (
-                <span id={unitHelpId} className="mt-1.5 block text-xs text-text-muted">
-                  Další balení drží stejnou jednotku jako produkt. Převody budeme dělat jen explicitně.
-                </span>
+          {usesPackages ? (
+            <div className="rounded-2xl border border-primary/15 bg-primary-soft/30 p-4">
+              <label className="block">
+                <span className="field-label">Kolik balení máš?</span>
+                <input
+                  className="input-field"
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  inputMode="decimal"
+                  value={packageCount}
+                  onChange={(event) => setPackageCount(event.target.value)}
+                  required
+                />
+              </label>
+
+              {mode === 'new' ? (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="field-label">Jedno balení má</span>
+                    <input
+                      className="input-field"
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      inputMode="decimal"
+                      value={packageQuantity}
+                      onChange={(event) => setPackageQuantity(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <div>
+                    <label htmlFor={packageUnitSelectId} className="field-label">Jednotka balení</label>
+                    <select
+                      id={packageUnitSelectId}
+                      className="input-field"
+                      value={packageUnit}
+                      onChange={(event) => setPackageUnit(event.target.value as InventoryUnit)}
+                    >
+                      {UNITS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+              ) : null}
+
+              {resolvedPackageQuantity && resolvedPackageUnit ? (
+                <p className="mt-3 text-sm text-text-muted">
+                  {formatPackageCount(Number(packageCount) || 0)} × {formatQuantity(resolvedPackageQuantity, resolvedPackageUnit)}
+                  {totalForPackages(Number(packageCount), resolvedPackageQuantity) !== null
+                    ? ` = ${formatQuantity(totalForPackages(Number(packageCount), resolvedPackageQuantity)!, resolvedPackageUnit)} celkem`
+                    : ''}
+                </p>
+              ) : null}
+
+              {mode === 'new' ? (
+                <button
+                  type="button"
+                  className="mt-3 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+                  onClick={() => {
+                    setEntryMode('amount')
+                    setUnit(packageUnit)
+                    setQuantity('1')
+                  }}
+                >
+                  Radši zadám celkové množství
+                </button>
               ) : null}
             </div>
-          </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="field-label">Kolik toho přidáváš?</span>
+                <input
+                  className="input-field"
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  inputMode="decimal"
+                  value={quantity}
+                  onChange={(event) => setQuantity(event.target.value)}
+                  required
+                />
+              </label>
+              <div>
+                <label htmlFor={unitSelectId} className="field-label">Jednotka</label>
+                <select
+                  id={unitSelectId}
+                  className="input-field"
+                  value={resolvedUnit}
+                  onChange={(event) => setUnit(event.target.value as InventoryUnit)}
+                  disabled={mode === 'existing'}
+                >
+                  {UNITS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+              </div>
+              {mode === 'new' ? (
+                <button
+                  type="button"
+                  className="sm:col-span-2 justify-self-start text-sm font-semibold text-primary underline-offset-4 hover:underline"
+                  onClick={() => {
+                    setEntryMode('packages')
+                    setPackageUnit(unit)
+                    setPackageQuantity('1')
+                    setPackageCount('1')
+                  }}
+                >
+                  Přidávám více stejných balení
+                </button>
+              ) : null}
+            </div>
+          )}
 
           <label className="block">
-            <span className="field-label">Kam to patří</span>
-            <select
-              className="input-field"
-              value={resolvedStorageId}
-              onChange={(event) => setStorageUnitId(event.target.value)}
-              required
-            >
-              {dashboard.storageUnits.map((storage) => (
-                <option key={storage.id} value={storage.id}>{storage.name}</option>
-              ))}
+            <span className="field-label">Kam to dáváš?</span>
+            <select className="input-field" value={resolvedStorageId} onChange={(event) => setStorageUnitId(event.target.value)} required>
+              {dashboard.storageUnits.map((storage) => <option key={storage.id} value={storage.id}>{storage.name}</option>)}
             </select>
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="field-label">Typ data</span>
+              <span className="field-label">Datum na obalu</span>
               <select
                 className="input-field"
                 value={expiryType}
@@ -426,7 +631,7 @@ export default function NewInventoryPage() {
                   if (next === 'unknown') setExpiryDate('')
                 }}
               >
-                <option value="unknown">Bez známého data</option>
+                <option value="unknown">Nevím / není uvedené</option>
                 <option value="use_by">Spotřebujte do</option>
                 <option value="best_before">Minimální trvanlivost</option>
               </select>
@@ -444,22 +649,14 @@ export default function NewInventoryPage() {
             </label>
           </div>
 
-          {error ? (
-            <div className="rounded-xl bg-danger/8 px-4 py-3 text-sm text-danger" role="alert">
-              {error}
-            </div>
-          ) : null}
+          {error ? <div className="rounded-xl bg-danger/8 px-4 py-3 text-sm text-danger" role="alert">{error}</div> : null}
 
           <button
             type="submit"
-            disabled={
-              submitting ||
-              (mode === 'new' ? !name.trim() : !selectedProduct) ||
-              !resolvedStorageId
-            }
+            disabled={submitting || (mode === 'new' ? !name.trim() : !selectedProduct) || !resolvedStorageId}
             className="button-primary w-full"
           >
-            {submitting ? 'Ukládám…' : mode === 'existing' ? 'Přidat balení' : 'Přidat do zásob'}
+            {submitting ? 'Ukládám…' : usesPackages ? 'Přidat balení' : 'Přidat do zásob'}
           </button>
         </form>
       </div>

@@ -20,11 +20,11 @@ export function storageDeletionBlockReason({
   referencedBatchCount: number
 }) {
   if (totalStorageUnits <= 1) {
-    return 'Domácnost musí mít alespoň jedno úložné místo.'
+    return 'Domácnost musí mít alespoň jedno místo pro jídlo.'
   }
 
   if (referencedBatchCount > 0) {
-    return 'Úložiště má historii zásob. Přejmenuj ho místo smazání, aby zůstala historie dohledatelná.'
+    return 'Tohle místo už je v historii zásob. Můžeš ho přejmenovat, ale ne smazat.'
   }
 
   return null

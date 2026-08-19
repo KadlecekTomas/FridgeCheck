@@ -4,6 +4,8 @@ export type OpenFoodFactsProduct = {
   brand: string
   category: string
   imageUrl: string | null
+  packageQuantity: number | null
+  packageUnit: 'g' | 'ml' | null
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -37,6 +39,17 @@ function safeOpenFoodFactsImage(value: unknown) {
   }
 }
 
+function normalizedPackageQuantity(value: unknown) {
+  if (typeof value !== 'string' && typeof value !== 'number') return null
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1_000_000_000) return null
+  return Math.round((parsed + Number.EPSILON) * 1000) / 1000
+}
+
+function normalizedPackageUnit(value: unknown): 'g' | 'ml' | null {
+  return value === 'g' || value === 'ml' ? value : null
+}
+
 export function normalizeBarcode(input: string) {
   const barcode = input.replace(/\s+/g, '')
   return /^\d{8,14}$/.test(barcode) ? barcode : null
@@ -55,6 +68,9 @@ export function mapOpenFoodFactsResponse(
   const category = firstListItem(product.categories, 200)
   const imageUrl =
     safeOpenFoodFactsImage(product.image_front_url) ?? safeOpenFoodFactsImage(product.image_url)
+  const packageQuantity = normalizedPackageQuantity(product.product_quantity)
+  const packageUnit = normalizedPackageUnit(product.product_quantity_unit)
+  const hasUsablePackage = packageQuantity !== null && packageUnit !== null
 
   return {
     ean: barcode,
@@ -62,5 +78,7 @@ export function mapOpenFoodFactsResponse(
     brand,
     category,
     imageUrl,
+    packageQuantity: hasUsablePackage ? packageQuantity : null,
+    packageUnit: hasUsablePackage ? packageUnit : null,
   }
 }

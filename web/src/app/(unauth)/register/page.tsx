@@ -92,12 +92,9 @@ export default function RegisterPage() {
           </span>
           <h1 className="mt-5 text-2xl font-bold tracking-[-0.02em] text-text">Zkontroluj e-mail</h1>
           <p className="mt-2 text-sm leading-6 text-text-muted">
-            Pokud projekt vyžaduje potvrzení adresy, poslali jsme odkaz na{' '}
-            <strong className="font-semibold text-text">{confirmationEmail}</strong>.
+            Na <strong className="font-semibold text-text">{confirmationEmail}</strong> jsme poslali odkaz k potvrzení účtu. Otevři ho a pak se přihlas.
           </p>
-          <Link href="/login" className="button-primary mt-6 w-full">
-            Přejít na přihlášení
-          </Link>
+          <Link href="/login" className="button-primary mt-6 w-full">Přejít na přihlášení</Link>
         </section>
       </main>
     )
@@ -111,11 +108,9 @@ export default function RegisterPage() {
             <Refrigerator size={23} aria-hidden="true" />
           </span>
           <p className="mt-6 text-sm font-semibold text-primary">HlídačJídla</p>
-          <h1 className="mt-2 text-4xl font-bold leading-tight tracking-[-0.04em] text-text">
-            Začni tím, co máš opravdu doma.
-          </h1>
+          <h1 className="mt-2 text-4xl font-bold leading-tight tracking-[-0.04em] text-text">Začni tím, co máš opravdu doma.</h1>
           <p className="mt-4 max-w-lg text-base leading-7 text-text-muted">
-            Po registraci založíš domácnost, dostaneš výchozí Lednici a můžeš hned přidat první balení.
+            Po registraci založíš domácnost, dostaneš výchozí Lednici a můžeš hned přidat první jídlo.
           </p>
         </section>
 
@@ -127,12 +122,8 @@ export default function RegisterPage() {
             <p className="mt-3 text-sm font-bold text-text">HlídačJídla</p>
           </div>
 
-          <h2 className="mt-6 text-[28px] font-bold tracking-[-0.03em] text-text lg:mt-0">
-            Vytvořit účet
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-text-muted">
-            Stačí e-mail a heslo. Další údaje po tobě teď nepotřebujeme.
-          </p>
+          <h2 className="mt-6 text-[28px] font-bold tracking-[-0.03em] text-text lg:mt-0">Vytvořit účet</h2>
+          <p className="mt-2 text-sm leading-6 text-text-muted">Stačí e-mail a heslo. Nic dalšího teď nepotřebujeme.</p>
 
           <form onSubmit={submit} className="mt-6 space-y-4">
             <label className="block">
@@ -150,9 +141,7 @@ export default function RegisterPage() {
             </label>
 
             <div className="block">
-              <label htmlFor="register-password" className="field-label">
-                Heslo
-              </label>
+              <label htmlFor="register-password" className="field-label">Heslo</label>
               <div className="relative">
                 <input
                   id="register-password"
@@ -171,12 +160,10 @@ export default function RegisterPage() {
                   className="absolute right-1.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl text-text-muted hover:bg-surface-muted hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   aria-label={showPassword ? 'Skrýt heslo' : 'Zobrazit heslo'}
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                 </button>
               </div>
-              <span id="register-password-hint" className="mt-1.5 block text-xs text-text-muted">
-                Alespoň 8 znaků.
-              </span>
+              <span id="register-password-hint" className="mt-1.5 block text-xs text-text-muted">Alespoň 8 znaků.</span>
             </div>
 
             <label className="block">
@@ -192,11 +179,7 @@ export default function RegisterPage() {
               />
             </label>
 
-            {error ? (
-              <div className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">
-                {error}
-              </div>
-            ) : null}
+            {error ? <div className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">{error}</div> : null}
 
             <button type="submit" className="button-primary w-full" disabled={submitting}>
               {submitting ? 'Vytvářím účet…' : 'Vytvořit účet'}
@@ -205,10 +188,7 @@ export default function RegisterPage() {
 
           <p className="mt-6 text-center text-sm text-text-muted">
             Už účet máš?{' '}
-            <Link
-              href="/login"
-              className="font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
+            <Link href="/login" className="font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
               Přihlásit se
             </Link>
           </p>

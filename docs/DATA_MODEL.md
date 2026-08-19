@@ -57,12 +57,18 @@ Typical fields:
 - `category`
 - `image_url`
 - `default_unit`
+- optional `package_quantity`
+- optional `package_unit`
 - `created_at`
 - `updated_at`
 
+`package_quantity` + `package_unit` are product-specific conversion metadata for a normal retail package. Example: an Eidam product may use canonical unit `g` and `package_quantity = 100`, `package_unit = g`. This lets the UI accept `24 packages` while canonical stock remains `2400 g` for FEFO, stock targets and event arithmetic.
+
+Package metadata is a pair: both values are absent or both are present. `package_quantity` must be positive, and the current model requires `package_unit = default_unit`; do not silently convert incompatible unit families.
+
 External metadata provenance may be stored, but third-party data is not the source of truth.
 
-EAN must not be assumed globally unique without handling missing/invalid codes and user-created products.
+EAN must not be assumed globally unique. Under the current household-private Product ownership model, a non-null normalized EAN is unique **within one household**, which guarantees that a repeated scan resolves to one local product definition. Different households may independently store/correct metadata for the same barcode.
 
 ### InventoryBatch
 
@@ -89,6 +95,8 @@ Expiry belongs here, not on `Product`.
 
 A product can have multiple active batches with different dates and locations.
 
+For packaged goods, batch `quantity` remains the canonical quantity in `Product.default_unit`; package count is derived from product package metadata. A database batch is not the same thing as one retail package and must never be labelled as such in the UI.
+
 ### StockTarget
 
 Defines the household's desired stock level for a product.
@@ -105,7 +113,7 @@ Typical fields:
 - `created_at`
 - `updated_at`
 
-Targets are preferences, not inventory facts.
+Targets are preferences, not inventory facts. For packaged goods the UI may edit/display target values as package counts, but persistence remains canonical quantity in the product unit.
 
 ### InventoryEvent
 
@@ -135,7 +143,7 @@ Typical fields:
 
 The current batch quantity can remain materialized for fast reads, but quantity-changing operations should create enough history to explain how the state was reached.
 
-History is important for future consumption prediction and waste analysis.
+History is important for future consumption prediction and waste analysis. The UI may render canonical event quantities as package counts when product package metadata exists, but the event itself remains canonical and auditable.
 
 ### ShoppingListItem
 
@@ -147,6 +155,8 @@ A shopping item can be:
 - manually added
 
 Keep the recommendation calculation separate from the user's final shopping intent so a user override does not corrupt inventory or targets.
+
+For packaged products, a derived shopping quantity should be rounded to purchasable whole packages before becoming an explicit shopping decision; the stored quantity remains canonical product units.
 
 ## Derived concepts
 
@@ -175,6 +185,7 @@ The real implementation must also handle:
 - planning horizon
 - expected/planned consumption
 - manual overrides
+- package rounding for products sold in known retail packages
 
 Do not encode this formula independently in multiple UI components.
 
@@ -190,9 +201,17 @@ Supported unit families should be centralized, for example:
 
 Only convert within compatible families unless product-specific conversion metadata exists.
 
-Do not use floating-point arithmetic carelessly for values where rounding can accumulate. Define normalization and rounding rules centrally.
+Product package metadata is an explicit product-specific conversion between a package count used for interaction and the product's canonical unit. Example: `24 × 100 g` is persisted as `2400 g`; consuming one package sends `100 g` to canonical FEFO logic.
+
+Do not use floating-point arithmetic carelessly for values where rounding can accumulate. Define normalization and rounding rules centrally and match database precision.
 
 Approximate inventory (`low`, `half`, `full`) may be supported as a separate explicit mode; do not pretend approximate states are precise measurements.
+
+## Barcode identity and repeated entry
+
+A repeated valid EAN in the same household must reuse the existing Product and create a new InventoryBatch. Product creation plus batch creation must be atomic enough that concurrent repeated scans cannot create duplicate household Product definitions for the same non-null EAN.
+
+Unknown external metadata does not invalidate a barcode. A manually entered Product may be saved with a valid EAN and then becomes the household's local identity for future scans.
 
 ## Expiry rules
 
@@ -250,6 +269,8 @@ Examples:
 - valid enum/check values
 - required household ownership
 - foreign-key integrity
+- household-local non-null EAN uniqueness under the current ownership model
+- valid package quantity/unit pairs
 - uniqueness only when semantics truly require it
 
 Add indexes based on actual access paths, especially household-scoped active inventory and expiry queries.

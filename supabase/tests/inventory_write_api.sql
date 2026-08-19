@@ -15,7 +15,10 @@ declare
   storage_b uuid;
   first_batch uuid;
   second_batch uuid;
+  packaged_batch uuid;
+  repeated_packaged_batch uuid;
   product_a uuid;
+  packaged_product uuid;
 begin
   perform set_config('request.jwt.claim.sub', '44444444-4444-4444-8444-444444444444', true);
 
@@ -83,6 +86,89 @@ begin
     raise exception 'Expected one purchase event per created batch';
   end if;
 
+  packaged_batch := public.create_or_add_product_batch(
+    p_household_id => household_a,
+    p_storage_unit_id => storage_a,
+    p_name => 'Eidam 30 %',
+    p_quantity => 2400,
+    p_unit => 'g',
+    p_ean_code => '8591234567890',
+    p_package_quantity => 100,
+    p_package_unit => 'g'
+  );
+
+  select product_id into strict packaged_product
+  from public.inventory_batches
+  where id = packaged_batch;
+
+  if not exists (
+    select 1
+    from public.products
+    where id = packaged_product
+      and ean_code = '8591234567890'
+      and default_unit = 'g'
+      and package_quantity = 100
+      and package_unit = 'g'
+  ) then
+    raise exception 'Package metadata was not stored on the product';
+  end if;
+
+  repeated_packaged_batch := public.create_or_add_product_batch(
+    p_household_id => household_a,
+    p_storage_unit_id => storage_a,
+    p_name => 'Wrong duplicate name must be ignored',
+    p_quantity => 1200,
+    p_unit => 'g',
+    p_ean_code => '8591234567890',
+    p_package_quantity => 100,
+    p_package_unit => 'g'
+  );
+
+  if repeated_packaged_batch = packaged_batch then
+    raise exception 'Repeated barcode must create a new physical batch';
+  end if;
+
+  if (select count(*) from public.products where household_id = household_a and ean_code = '8591234567890') <> 1 then
+    raise exception 'Repeated barcode duplicated the product definition';
+  end if;
+
+  if (select count(*) from public.inventory_batches where product_id = packaged_product) <> 2 then
+    raise exception 'Repeated barcode did not create the second batch';
+  end if;
+
+  if (select name from public.products where id = packaged_product) <> 'Eidam 30 %' then
+    raise exception 'Repeated barcode unexpectedly rewrote trusted household metadata';
+  end if;
+
+  begin
+    perform public.create_or_add_product_batch(
+      p_household_id => household_a,
+      p_storage_unit_id => storage_a,
+      p_name => 'Invalid package',
+      p_quantity => 1,
+      p_unit => 'g',
+      p_package_quantity => 1,
+      p_package_unit => 'ml'
+    );
+    raise exception 'Incompatible package unit was unexpectedly allowed';
+  exception
+    when invalid_parameter_value then null;
+  end;
+
+  begin
+    perform public.create_or_add_product_batch(
+      p_household_id => household_a,
+      p_storage_unit_id => storage_a,
+      p_name => 'Invalid EAN',
+      p_quantity => 1,
+      p_unit => 'pcs',
+      p_ean_code => 'ABC'
+    );
+    raise exception 'Malformed EAN was unexpectedly allowed';
+  exception
+    when invalid_parameter_value then null;
+  end;
+
   begin
     perform public.add_batch_to_product(
       p_product_id => product_a,
@@ -113,6 +199,19 @@ begin
       p_unit => 'pcs'
     );
     raise exception 'Cross-household inventory RPC was unexpectedly allowed';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  begin
+    perform public.create_or_add_product_batch(
+      p_household_id => household_a,
+      p_storage_unit_id => storage_b,
+      p_name => 'Wrong storage',
+      p_quantity => 1,
+      p_unit => 'pcs'
+    );
+    raise exception 'Cross-household storage was unexpectedly allowed';
   exception
     when insufficient_privilege then null;
   end;

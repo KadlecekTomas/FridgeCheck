@@ -11,7 +11,7 @@ describe('inventory history presentation', () => {
     assert.equal(inventoryEventLabel('purchase'), 'Nákup')
     assert.equal(inventoryEventLabel('consume'), 'Spotřeba')
     assert.equal(inventoryEventLabel('discard'), 'Vyhození')
-    assert.equal(inventoryEventLabel('correction'), 'Korekce')
+    assert.equal(inventoryEventLabel('correction'), 'Oprava stavu')
     assert.equal(inventoryEventLabel('move'), 'Přesun')
     assert.equal(inventoryEventLabel('open'), 'Otevření')
   })
