@@ -5,6 +5,9 @@ alter table public.inventory_batches
   add column initial_quantity numeric(14,3),
   add column quantity_precision public.inventory_quantity_precision not null default 'exact';
 
+alter table public.shopping_list_items
+  add column quantity_precision public.inventory_quantity_precision not null default 'exact';
+
 update public.inventory_batches b
 set initial_quantity = coalesce(
   (
