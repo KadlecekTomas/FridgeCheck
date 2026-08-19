@@ -223,6 +223,7 @@ export type Database = {
           name: string
           product_id: string | null
           quantity: number | null
+          quantity_precision: Database["public"]["Enums"]["inventory_quantity_precision"]
           source: Database["public"]["Enums"]["shopping_item_source"]
           unit: Database["public"]["Enums"]["inventory_unit"] | null
           updated_at: string
@@ -236,6 +237,7 @@ export type Database = {
           name: string
           product_id?: string | null
           quantity?: number | null
+          quantity_precision?: Database["public"]["Enums"]["inventory_quantity_precision"]
           source?: Database["public"]["Enums"]["shopping_item_source"]
           unit?: Database["public"]["Enums"]["inventory_unit"] | null
           updated_at?: string
@@ -249,6 +251,7 @@ export type Database = {
           name?: string
           product_id?: string | null
           quantity?: number | null
+          quantity_precision?: Database["public"]["Enums"]["inventory_quantity_precision"]
           source?: Database["public"]["Enums"]["shopping_item_source"]
           unit?: Database["public"]["Enums"]["inventory_unit"] | null
           updated_at?: string
