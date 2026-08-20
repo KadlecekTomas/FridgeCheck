@@ -2,16 +2,35 @@
 
 import Link from 'next/link'
 import { FormEvent, useState } from 'react'
-import { CheckCircle2, Eye, EyeOff, KeyRound } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, KeyRound, LogOut } from 'lucide-react'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
+
+type RecoveryState = 'editing' | 'logout-pending' | 'completed'
 
 export function UpdatePasswordForm() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [completed, setCompleted] = useState(false)
+  const [state, setState] = useState<RecoveryState>('editing')
   const [error, setError] = useState<string | null>(null)
+
+  const finishSignOut = async () => {
+    setSubmitting(true)
+    setError(null)
+    const { error: signOutError } = await supabaseV2Browser().auth.signOut()
+
+    if (signOutError) {
+      setState('logout-pending')
+      setError('Heslo je změněné, ale odhlášení se nepodařilo dokončit. Zkontroluj připojení a zkus odhlášení znovu.')
+      setSubmitting(false)
+      return false
+    }
+
+    setState('completed')
+    setSubmitting(false)
+    return true
+  }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -27,8 +46,7 @@ export function UpdatePasswordForm() {
     }
 
     setSubmitting(true)
-    const supabase = supabaseV2Browser()
-    const { error: updateError } = await supabase.auth.updateUser({ password })
+    const { error: updateError } = await supabaseV2Browser().auth.updateUser({ password })
 
     if (updateError) {
       setError('Heslo se nepodařilo změnit. Pošli si nový odkaz pro obnovu a zkus to znovu.')
@@ -36,12 +54,13 @@ export function UpdatePasswordForm() {
       return
     }
 
-    await supabase.auth.signOut()
-    setCompleted(true)
-    setSubmitting(false)
+    setPassword('')
+    setConfirmPassword('')
+    setState('logout-pending')
+    await finishSignOut()
   }
 
-  if (completed) {
+  if (state === 'completed') {
     return (
       <main className="min-h-dvh bg-canvas px-4 py-8 sm:py-12">
         <div className="mx-auto flex min-h-[calc(100dvh-6rem)] max-w-md items-center">
@@ -51,11 +70,38 @@ export function UpdatePasswordForm() {
             </span>
             <h1 className="mt-5 text-[28px] font-bold tracking-[-0.03em] text-text">Heslo je změněné</h1>
             <p className="mt-2 text-sm leading-6 text-text-muted">
-              Recovery session jsme ukončili. Přihlas se znovu svým novým heslem.
+              Teď se přihlas znovu svým novým heslem.
             </p>
             <Link href="/login" className="button-primary mt-6 w-full">
               Přejít na přihlášení
             </Link>
+          </section>
+        </div>
+      </main>
+    )
+  }
+
+  if (state === 'logout-pending') {
+    return (
+      <main className="min-h-dvh bg-canvas px-4 py-8 sm:py-12">
+        <div className="mx-auto flex min-h-[calc(100dvh-6rem)] max-w-md items-center">
+          <section className="w-full rounded-2xl border border-warning/25 bg-surface p-6 sm:p-8">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary">
+              <KeyRound size={20} aria-hidden="true" />
+            </span>
+            <h1 className="mt-5 text-[28px] font-bold tracking-[-0.03em] text-text">Heslo je změněné</h1>
+            <p className="mt-2 text-sm leading-6 text-text-muted">
+              Ještě tě potřebujeme bezpečně odhlásit, než bude změna úplně dokončená.
+            </p>
+            {error ? (
+              <div className="mt-5 rounded-xl bg-warning/10 px-4 py-3 text-sm leading-6 text-text" role="alert">
+                {error}
+              </div>
+            ) : null}
+            <button type="button" className="button-primary mt-6 w-full" onClick={() => void finishSignOut()} disabled={submitting}>
+              <LogOut size={17} aria-hidden="true" />
+              {submitting ? 'Odhlašuji…' : 'Dokončit odhlášení'}
+            </button>
           </section>
         </div>
       </main>
@@ -72,7 +118,7 @@ export function UpdatePasswordForm() {
           <p className="mt-4 text-sm font-semibold text-primary">HlídačJídla</p>
           <h1 className="mt-1 text-[28px] font-bold tracking-[-0.03em] text-text">Nastavit nové heslo</h1>
           <p className="mt-2 text-sm leading-6 text-text-muted">
-            Odkaz pro obnovu tě bezpečně přihlásil jen pro tuto změnu. Zvol nové heslo k účtu.
+            Zvol nové heslo k účtu. Po uložení tě odhlásíme a přihlásíš se znovu novým heslem.
           </p>
 
           <form onSubmit={submit} className="mt-6 space-y-4">
