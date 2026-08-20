@@ -28,7 +28,7 @@ Membership and authorization are separate concerns and must be enforced by RLS/b
 
 A physical storage location within a household.
 
-Examples:
+Examples include:
 
 - fridge
 - freezer
@@ -158,6 +158,8 @@ Keep the recommendation calculation separate from the user's final shopping inte
 
 For packaged products, a derived shopping quantity should be rounded to purchasable whole packages before becoming an explicit shopping decision; the stored quantity remains canonical product units.
 
+For one household/product pair, at most one **open derived** shopping item may exist at a time. A completed derived item remains history and does not block a later recommendation. Manual shopping items remain independent decisions and are not covered by this uniqueness rule. Enforce this invariant at the database boundary as well as in UI interaction state so double taps, slow networks and concurrent tabs cannot create duplicate active recommendations.
+
 ## Derived concepts
 
 ### Usable stock
@@ -271,6 +273,7 @@ Examples:
 - foreign-key integrity
 - household-local non-null EAN uniqueness under the current ownership model
 - valid package quantity/unit pairs
+- one open derived shopping item per household/product
 - uniqueness only when semantics truly require it
 
 Add indexes based on actual access paths, especially household-scoped active inventory and expiry queries.
