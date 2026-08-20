@@ -46,9 +46,20 @@ test('capture polished real-product marketing screens', async ({ page }) => {
   if (storageError) throw storageError
 
   const fridgeId = storageUnits?.find((item) => item.name === 'Lednice')?.id
-  const freezerId = storageUnits?.find((item) => item.name === 'Mrazák')?.id
-  const pantryId = storageUnits?.find((item) => item.name === 'Spíž')?.id
-  if (!fridgeId || !freezerId || !pantryId) throw new Error('Default storage units are missing')
+  if (!fridgeId) throw new Error('Default fridge is missing')
+
+  const { data: extraStorage, error: extraStorageError } = await supabase
+    .from('storage_units')
+    .insert([
+      { household_id: householdId, name: 'Mrazák', type: 'freezer' },
+      { household_id: householdId, name: 'Spíž', type: 'pantry' },
+    ])
+    .select('id,name')
+  if (extraStorageError) throw extraStorageError
+
+  const freezerId = extraStorage?.find((item) => item.name === 'Mrazák')?.id
+  const pantryId = extraStorage?.find((item) => item.name === 'Spíž')?.id
+  if (!freezerId || !pantryId) throw new Error('Demo storage units were not created')
 
   async function addProduct({
     name,
