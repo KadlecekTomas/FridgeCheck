@@ -180,7 +180,7 @@ test('capture polished real-product marketing screens', async ({ page }) => {
 
   await page.goto('/login')
   await page.getByLabel('E-mail').fill(email)
-  await page.getByLabel('Heslo').fill(password)
+  await page.getByLabel('Heslo', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Přihlásit se' }).click()
   await expect(page).toHaveURL(/\/dashboard$/)
   await expect(page.getByRole('heading', { name: 'Co dnes potřebuje pozornost' })).toBeVisible()
