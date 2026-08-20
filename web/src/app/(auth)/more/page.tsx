@@ -6,21 +6,26 @@ import { useRouter } from 'next/navigation'
 import { Clock3, Home, LogOut, Plus, Warehouse } from 'lucide-react'
 import { InstallAppCard } from '@/components/app/InstallAppCard'
 import { useHousehold } from '@/contexts/HouseholdContext'
-import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
+
+function householdCountLabel(count: number) {
+  if (count === 1) return '1 domácnost'
+  if (count >= 2 && count <= 4) return `${count} domácnosti`
+  return `${count} domácností`
+}
 
 export default function MorePage() {
   const router = useRouter()
   const {
     households,
     activeHousehold,
-    activeHouseholdId,
     refreshHouseholds,
   } = useHousehold()
-  const dashboard = useDashboardV2(activeHouseholdId)
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [householdError, setHouseholdError] = useState<string | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
+  const [accountError, setAccountError] = useState<string | null>(null)
 
   const createHousehold = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -28,13 +33,13 @@ export default function MorePage() {
     if (!trimmed) return
 
     setCreating(true)
-    setError(null)
+    setHouseholdError(null)
     const { data, error: rpcError } = await supabaseV2Browser().rpc('create_household', {
       household_name: trimmed,
     })
 
     if (rpcError || !data) {
-      setError('Domácnost se nepodařilo vytvořit.')
+      setHouseholdError('Domácnost se nepodařilo vytvořit. Zkus to prosím znovu.')
       setCreating(false)
       return
     }
@@ -45,7 +50,18 @@ export default function MorePage() {
   }
 
   const signOut = async () => {
-    await supabaseV2Browser().auth.signOut()
+    if (signingOut) return
+
+    setSigningOut(true)
+    setAccountError(null)
+    const { error: signOutError } = await supabaseV2Browser().auth.signOut()
+
+    if (signOutError) {
+      setAccountError('Odhlášení se nepodařilo. Zkontroluj připojení a zkus to znovu.')
+      setSigningOut(false)
+      return
+    }
+
     router.replace('/login')
     router.refresh()
   }
@@ -65,9 +81,7 @@ export default function MorePage() {
           <div>
             <h2 className="font-bold text-text">Domácnosti</h2>
             <p className="text-sm text-text-muted">
-              {households.length === 0
-                ? 'Zatím žádná domácnost'
-                : `${households.length} ${households.length === 1 ? 'domácnost' : 'domácnosti'}`}
+              {households.length === 0 ? 'Zatím žádná domácnost' : householdCountLabel(households.length)}
             </p>
           </div>
         </div>
@@ -76,11 +90,6 @@ export default function MorePage() {
           <div className="mt-5 rounded-2xl bg-canvas p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">Používáš</p>
             <p className="mt-1 font-semibold text-text">{activeHousehold.name}</p>
-            {dashboard.storageUnits.length > 0 ? (
-              <p className="mt-1 text-sm text-text-muted">
-                {dashboard.storageUnits.map((storage) => storage.name).join(' · ')}
-              </p>
-            ) : null}
           </div>
         ) : null}
 
@@ -100,7 +109,7 @@ export default function MorePage() {
             {creating ? 'Vytvářím…' : 'Přidat domácnost'}
           </button>
         </form>
-        {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
+        {householdError ? <p className="mt-3 text-sm text-danger" role="alert">{householdError}</p> : null}
       </section>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -135,10 +144,11 @@ export default function MorePage() {
 
       <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <h2 className="font-bold text-text">Účet</h2>
-        <p className="mt-1 text-sm leading-6 text-text-muted">Odhlásíš tento účet na tomto zařízení.</p>
-        <button type="button" onClick={() => void signOut()} className="button-secondary mt-5 text-danger">
+        <p className="mt-1 text-sm leading-6 text-text-muted">Odhlásíš se z HlídačeJídla na tomto zařízení.</p>
+        {accountError ? <p className="mt-3 text-sm text-danger" role="alert">{accountError}</p> : null}
+        <button type="button" onClick={() => void signOut()} disabled={signingOut} className="button-secondary mt-5 text-danger">
           <LogOut size={17} aria-hidden="true" />
-          Odhlásit se
+          {signingOut ? 'Odhlašuji…' : 'Odhlásit se'}
         </button>
       </section>
     </div>
