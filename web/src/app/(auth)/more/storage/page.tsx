@@ -135,6 +135,20 @@ export default function StorageManagementPage() {
     )
   }
 
+  if (dashboard.error) {
+    return (
+      <div className="mx-auto max-w-lg rounded-2xl border border-danger/20 bg-surface p-6" role="alert">
+        <h1 className="text-xl font-bold text-text">Úložná místa se nepodařilo načíst</h1>
+        <p className="mt-2 text-sm leading-6 text-text-muted">
+          Nic jsme nezměnili. Dokud nemáme spolehlivě načtená místa a jejich historii, nedovolíme je upravovat ani mazat.
+        </p>
+        <button type="button" className="button-primary mt-5" onClick={() => void dashboard.refresh()} disabled={dashboard.refreshing}>
+          {dashboard.refreshing ? 'Načítám…' : 'Zkusit znovu'}
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
@@ -152,9 +166,9 @@ export default function StorageManagementPage() {
         </p>
       </div>
 
-      {dashboard.error || error ? (
+      {error ? (
         <div className="rounded-2xl border border-danger/20 bg-danger/5 p-4 text-sm text-danger" role="alert">
-          {error ?? dashboard.error}
+          {error}
         </div>
       ) : null}
 
