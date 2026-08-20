@@ -100,12 +100,8 @@ export function CorrectBatchAction({
       setError('Zadej skutečný stav odlišný od hodnoty v aplikaci.')
       return
     }
-    if (!normalizedReason) {
-      setError('Napiš stručně, proč stav opravuješ.')
-      return
-    }
     if (normalizedReason.length > 500) {
-      setError('Důvod může mít nejvýše 500 znaků.')
+      setError('Poznámka může mít nejvýše 500 znaků.')
       return
     }
 
@@ -115,7 +111,7 @@ export function CorrectBatchAction({
     const { data: delta, error: correctionError } = await supabaseV2Browser().rpc('correct_inventory_batch', {
       p_batch_id: batchId,
       p_new_quantity: storedValue,
-      p_reason: normalizedReason,
+      p_reason: normalizedReason || undefined,
     })
 
     if (correctionError) {
@@ -190,8 +186,8 @@ export function CorrectBatchAction({
               </div>
 
               <div>
-                <label htmlFor={reasonId} className="field-label">Proč stav opravuješ?</label>
-                <textarea id={reasonId} className="input-field min-h-24 resize-y" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} placeholder="např. přepočítáno doma" required />
+                <label htmlFor={reasonId} className="field-label">Poznámka <span className="font-normal text-text-muted">volitelně</span></label>
+                <textarea id={reasonId} className="input-field min-h-24 resize-y" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} placeholder="např. přepočítáno doma" />
                 <p className="mt-1.5 text-xs text-text-muted">{reason.length}/500</p>
               </div>
 
@@ -199,7 +195,7 @@ export function CorrectBatchAction({
 
               <div className="flex gap-2">
                 <button type="button" onClick={close} disabled={submitting} className="button-secondary flex-1">Zrušit</button>
-                <button type="submit" disabled={submitting || quantity === '' || !reason.trim()} className="button-primary flex-1">
+                <button type="submit" disabled={submitting || quantity === ''} className="button-primary flex-1">
                   <RefreshCw size={17} aria-hidden="true" />
                   {submitting ? 'Ukládám…' : 'Srovnat'}
                 </button>

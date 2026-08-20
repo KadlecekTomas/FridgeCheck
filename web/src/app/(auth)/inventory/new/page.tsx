@@ -478,7 +478,6 @@ export default function NewInventoryPage() {
               autoComplete="off"
               placeholder="např. 859…"
               maxLength={20}
-              autoFocus
             />
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <BarcodeScannerAction onDetected={handleScannedBarcode} disabled={lookupLoading} />
@@ -493,7 +492,7 @@ export default function NewInventoryPage() {
               </button>
             </div>
             <p className="mt-2 text-xs leading-5 text-text-muted">
-              Nejdřív hledáme mezi tvými uloženými produkty. Teprve nový kód zkusíme dohledat online.
+              Kód můžeš naskenovat nebo opsat. Když ho už známe, doplníme jídlo sami.
             </p>
             {lookupStatus ? <p className="mt-2 text-sm font-medium text-primary" role="status">{lookupStatus}</p> : null}
             {lookupError ? <p className="mt-2 text-sm text-warning" role="status">{lookupError}</p> : null}

@@ -18,7 +18,7 @@ function cameraErrorMessage(error: unknown) {
     }
   }
 
-  return 'Kameru se nepodařilo spustit. EAN můžeš pořád napsat ručně.'
+  return 'Kameru se nepodařilo spustit. Čárový kód můžeš pořád opsat ručně.'
 }
 
 export function BarcodeScannerAction({
@@ -72,7 +72,7 @@ export function BarcodeScannerAction({
       if (cancelled) return
 
       if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-        setError('Kamera vyžaduje zabezpečené HTTPS připojení a podporovaný prohlížeč. EAN můžeš napsat ručně.')
+        setError('Kamera vyžaduje zabezpečené HTTPS připojení a podporovaný prohlížeč. Čárový kód můžeš opsat ručně.')
         return
       }
 
@@ -154,7 +154,7 @@ export function BarcodeScannerAction({
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold text-primary">EAN</p>
+                <p className="text-sm font-semibold text-primary">Čárový kód</p>
                 <h2 id="barcode-scanner-title" className="mt-1 text-xl font-bold tracking-[-0.02em] text-text">
                   Namiř kameru na čárový kód
                 </h2>
@@ -196,11 +196,11 @@ export function BarcodeScannerAction({
                 </div>
               </div>
             ) : (
-              <p className="mt-4 text-center text-sm text-text-muted">Hledám EAN…</p>
+              <p className="mt-4 text-center text-sm text-text-muted">Hledám čárový kód…</p>
             )}
 
             <button type="button" onClick={close} className="button-secondary mt-5 w-full">
-              Zavřít a zadat EAN ručně
+              Zavřít a opsat kód ručně
             </button>
           </div>
         </div>
