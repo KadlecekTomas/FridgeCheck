@@ -21,7 +21,7 @@ async function waitForRecoveryLink(request: APIRequestContext) {
   throw new Error('Password recovery email did not arrive in local Mailpit')
 }
 
-test('user can recover a forgotten password through the real Supabase email flow', async ({ page }) => {
+test('user can recover a forgotten password even when post-change logout needs a retry', async ({ page }) => {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`
   const email = `recovery-${suffix}@example.com`
   const oldPassword = 'FridgeCheck-old-123!'
@@ -53,9 +53,35 @@ test('user can recover a forgotten password through the real Supabase email flow
 
   await page.getByLabel('Nové heslo', { exact: true }).fill(newPassword)
   await page.getByLabel('Nové heslo znovu').fill(newPassword)
+
+  let blockLogout = true
+  await page.route('**/auth/v1/logout*', async (route) => {
+    if (!blockLogout) {
+      await route.continue()
+      return
+    }
+
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'temporary logout failure' }),
+    })
+  })
+
   await page.getByRole('button', { name: 'Uložit nové heslo' }).click()
 
   await expect(page.getByRole('heading', { name: 'Heslo je změněné' })).toBeVisible()
+  await expect(page.locator('main').getByRole('alert')).toContainText('Heslo je změněné, ale odhlášení se nepodařilo dokončit')
+  await expect(page.getByRole('button', { name: 'Dokončit odhlášení' })).toBeVisible()
+  await expect(page.getByText('Recovery session', { exact: false })).toHaveCount(0)
+
+  blockLogout = false
+  await page.getByRole('button', { name: 'Dokončit odhlášení' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Heslo je změněné' })).toBeVisible()
+  await expect(page.getByText('Teď se přihlas znovu svým novým heslem.')).toBeVisible()
+  await page.unroute('**/auth/v1/logout*')
+
   await page.getByRole('link', { name: 'Přejít na přihlášení' }).click()
   await expect(page).toHaveURL(/\/login$/)
 
