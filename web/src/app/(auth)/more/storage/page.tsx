@@ -140,7 +140,7 @@ export default function StorageManagementPage() {
       <div className="mx-auto max-w-lg rounded-2xl border border-danger/20 bg-surface p-6" role="alert">
         <h1 className="text-xl font-bold text-text">Úložná místa se nepodařilo načíst</h1>
         <p className="mt-2 text-sm leading-6 text-text-muted">
-          Nic jsme nezměnili. Dokud nemáme spolehlivě načtená místa a jejich historii, nedovolíme je upravovat ani mazat.
+          Aktuální místa a jejich historie se nepodařily načíst. Dokud je nemáme spolehlivě k dispozici, nedovolíme je upravovat ani mazat.
         </p>
         <button type="button" className="button-primary mt-5" onClick={() => void dashboard.refresh()} disabled={dashboard.refreshing}>
           {dashboard.refreshing ? 'Načítám…' : 'Zkusit znovu'}
