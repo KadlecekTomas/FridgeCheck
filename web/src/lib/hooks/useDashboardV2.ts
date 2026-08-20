@@ -77,28 +77,30 @@ async function fetchDashboardData(householdId: string) {
 export function useDashboardV2(householdId: string | null) {
   const [data, setData] = useState<DashboardV2Data>(EMPTY_DATA)
   const [loading, setLoading] = useState(Boolean(householdId))
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     if (!householdId) {
       setData(EMPTY_DATA)
       setLoading(false)
+      setRefreshing(false)
       setError(null)
       return
     }
 
-    setLoading(true)
-    setError(null)
+    setRefreshing(true)
     const result = await fetchDashboardData(householdId)
 
     if (result.error || !result.data) {
       setError('Data domácnosti se nepodařilo načíst.')
-      setLoading(false)
+      setRefreshing(false)
       return
     }
 
     setData(result.data)
-    setLoading(false)
+    setError(null)
+    setRefreshing(false)
   }, [householdId])
 
   useEffect(() => {
@@ -113,11 +115,13 @@ export function useDashboardV2(householdId: string | null) {
       if (!householdId) {
         setData(EMPTY_DATA)
         setLoading(false)
+        setRefreshing(false)
         setError(null)
         return
       }
 
       setLoading(true)
+      setRefreshing(false)
       setError(null)
       const result = await fetchDashboardData(householdId)
       if (cancelled) return
@@ -137,5 +141,5 @@ export function useDashboardV2(householdId: string | null) {
     }
   }, [householdId])
 
-  return { ...data, loading, error, refresh }
+  return { ...data, loading, refreshing, error, refresh }
 }
