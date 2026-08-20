@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronDown, Refrigerator } from 'lucide-react'
+import { AlertTriangle, ChevronDown, Refrigerator } from 'lucide-react'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { DesktopNavigation } from './AppNavigation'
 
@@ -11,6 +11,7 @@ export function AppHeader({ userEmail }: { userEmail?: string | null }) {
     activeHousehold,
     activeHouseholdId,
     loading,
+    error,
     setActiveHouseholdId,
   } = useHousehold()
 
@@ -33,6 +34,11 @@ export function AppHeader({ userEmail }: { userEmail?: string | null }) {
         <div className="min-w-0 flex-1 md:max-w-56">
           {loading ? (
             <div className="h-10 w-full animate-pulse rounded-xl bg-surface-muted" />
+          ) : error ? (
+            <div className="flex min-h-10 items-center gap-2 truncate text-sm font-semibold text-warning" title="Domácnosti se nepodařilo načíst">
+              <AlertTriangle size={16} className="shrink-0" aria-hidden="true" />
+              <span className="truncate">Načtení selhalo</span>
+            </div>
           ) : households.length > 1 ? (
             <label className="relative block">
               <span className="sr-only">Aktivní domácnost</span>
