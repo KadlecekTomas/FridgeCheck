@@ -60,15 +60,15 @@ begin
     raise exception 'Downward correction event was not written correctly';
   end if;
 
-  if public.correct_inventory_batch(batch_a, 7, 'nalezeno další balení') <> 4 then
-    raise exception 'Upward correction returned an unexpected delta';
+  if public.correct_inventory_batch(batch_a, 7) <> 4 then
+    raise exception 'Correction without a reason returned an unexpected delta';
   end if;
 
   if not exists (
     select 1 from public.inventory_batches
     where id = batch_a and quantity = 7 and status = 'active'
   ) then
-    raise exception 'Upward correction did not update the batch';
+    raise exception 'Correction without a reason did not update the batch';
   end if;
 
   if not exists (
@@ -76,12 +76,26 @@ begin
     where inventory_batch_id = batch_a
       and type = 'correction'
       and quantity_delta = 4
-      and reason = 'nalezeno další balení'
+      and reason is null
   ) then
-    raise exception 'Upward correction event was not written correctly';
+    raise exception 'Correction without a reason did not write a null-reason audit event';
   end if;
 
-  if public.correct_inventory_batch(batch_a, 0, 've skutečnosti prázdné') <> -7 then
+  if public.correct_inventory_batch(batch_a, 6, '   ') <> -1 then
+    raise exception 'Correction with a blank reason returned an unexpected delta';
+  end if;
+
+  if not exists (
+    select 1 from public.inventory_events
+    where inventory_batch_id = batch_a
+      and type = 'correction'
+      and quantity_delta = -1
+      and reason is null
+  ) then
+    raise exception 'Blank correction reason was not normalized to null';
+  end if;
+
+  if public.correct_inventory_batch(batch_a, 0, 've skutečnosti prázdné') <> -6 then
     raise exception 'Zero correction returned an unexpected delta';
   end if;
 
@@ -128,13 +142,6 @@ begin
   begin
     perform public.correct_inventory_batch(unchanged_batch, 1.0001, 'too precise');
     raise exception 'Over-precise correction was unexpectedly allowed';
-  exception
-    when invalid_parameter_value then null;
-  end;
-
-  begin
-    perform public.correct_inventory_batch(unchanged_batch, 3, '   ');
-    raise exception 'Blank correction reason was unexpectedly allowed';
   exception
     when invalid_parameter_value then null;
   end;
