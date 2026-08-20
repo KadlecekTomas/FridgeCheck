@@ -11,7 +11,7 @@ import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
 import { normalizeBarcode, type OpenFoodFactsProduct } from '@/domain/products/openFoodFacts'
-import { buildPackageExpiryBatches } from '@/domain/inventory/expiryGroups'
+import { buildPackageExpiryBatches, type CanonicalExpiryBatch } from '@/domain/inventory/expiryGroups'
 import {
   formatPackageCount,
   formatQuantity,
@@ -273,7 +273,7 @@ export default function NewInventoryPage() {
       }
     }
 
-    let splitExpiryBatches: ReturnType<typeof buildPackageExpiryBatches> extends { ok: true; batches: infer T } ? T : never = null as never
+    let splitExpiryBatches: CanonicalExpiryBatch[] | null = null
     if (usesPackages && differentExpiryDates) {
       if (!resolvedPackageQuantity) {
         setError('Velikost jednoho balení chybí.')
