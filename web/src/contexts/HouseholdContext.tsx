@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import {
   createContext,
   useCallback,
@@ -34,6 +35,7 @@ async function fetchHouseholds() {
 }
 
 export function HouseholdProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
   const [households, setHouseholds] = useState<Household[]>([])
   const [activeHouseholdId, setActiveHouseholdIdState] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,6 +64,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
 
   const refreshHouseholds = useCallback(
     async (preferredId?: string) => {
+      const creatingFirstHousehold = Boolean(preferredId) && households.length === 0
       setLoading(true)
       setError(null)
 
@@ -75,9 +78,18 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      applyHouseholds(data ?? [], preferredId)
+      const nextHouseholds = data ?? []
+      applyHouseholds(nextHouseholds, preferredId)
+
+      if (
+        creatingFirstHousehold &&
+        preferredId &&
+        nextHouseholds.some((household) => household.id === preferredId)
+      ) {
+        router.replace('/inventory/new')
+      }
     },
-    [applyHouseholds]
+    [applyHouseholds, households.length, router]
   )
 
   useEffect(() => {
