@@ -1,4 +1,4 @@
-import { hasAtMostThreeDecimals, roundInventoryQuantity, totalForPackages } from './quantity'
+import { hasAtMostThreeDecimals, roundInventoryQuantity, totalForPackages } from './quantity.ts'
 
 export type KnownExpiryType = 'use_by' | 'best_before'
 
