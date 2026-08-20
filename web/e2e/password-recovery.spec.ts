@@ -71,7 +71,7 @@ test('user can recover a forgotten password even when post-change logout needs a
   await page.getByRole('button', { name: 'Uložit nové heslo' }).click()
 
   await expect(page.getByRole('heading', { name: 'Heslo je změněné' })).toBeVisible()
-  await expect(page.getByRole('alert')).toContainText('Heslo je změněné, ale odhlášení se nepodařilo dokončit')
+  await expect(page.locator('main').getByRole('alert')).toContainText('Heslo je změněné, ale odhlášení se nepodařilo dokončit')
   await expect(page.getByRole('button', { name: 'Dokončit odhlášení' })).toBeVisible()
   await expect(page.getByText('Recovery session', { exact: false })).toHaveCount(0)
 
