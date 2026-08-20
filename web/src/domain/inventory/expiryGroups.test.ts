@@ -136,9 +136,9 @@ describe('mixed package expiry groups', () => {
 
   it('rejects canonical arithmetic overflow instead of persisting an invalid quantity', () => {
     assert.deepEqual(
-      buildPackageExpiryBatches(2e150, 1e150, 'use_by', [
-        { packageCount: 1e150, expiryDate: '2026-09-05' },
-        { packageCount: 1e150, expiryDate: '2026-09-12' },
+      buildPackageExpiryBatches(2e155, 1e155, 'use_by', [
+        { packageCount: 1e155, expiryDate: '2026-09-05' },
+        { packageCount: 1e155, expiryDate: '2026-09-12' },
       ]),
       { ok: false, error: 'Množství jedné ze skupin se nepodařilo spočítat.' }
     )
