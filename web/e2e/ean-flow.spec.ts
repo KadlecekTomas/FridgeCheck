@@ -1,5 +1,15 @@
 import { expect, test } from '@playwright/test'
 
+function dateFromToday(days: number) {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
 test('barcode entry stays usable for known, unknown, packaged and unavailable products', async ({ page }) => {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`
   const email = `ean-e2e-${suffix}@example.com`
@@ -7,6 +17,11 @@ test('barcode entry stays usable for known, unknown, packaged and unavailable pr
   const packagedEan = '8591234567890'
   const unknownEan = '12345678'
   const unavailableEan = '1234567890123'
+  const firstExpiry = dateFromToday(2)
+  const secondExpiry = dateFromToday(5)
+  const thirdExpiry = dateFromToday(9)
+  const repeatedFirstExpiry = dateFromToday(20)
+  const repeatedSecondExpiry = dateFromToday(30)
 
   const anonymousLookup = await page.request.get(`/api/products/ean?ean=${packagedEan}`)
   expect(anonymousLookup.status()).toBe(401)
@@ -105,11 +120,29 @@ test('barcode entry stays usable for known, unknown, packaged and unavailable pr
   await expect(page.getByLabel('Kolik balení máš?')).toHaveValue('1')
   await page.getByLabel('Kolik balení máš?').fill('24')
   await expect(page.getByText(/24 balení × 100 g = 2.?400 g celkem/)).toBeVisible()
+
+  await page.getByLabel('Datum na obalu').selectOption('use_by')
+  await page.getByRole('button', { name: 'Mají různá data' }).click()
+  await page.getByLabel('Počet balení skupina 1').fill('10')
+  await page.getByLabel('Datum skupina 1').fill(firstExpiry)
+  await page.getByLabel('Počet balení skupina 2').fill('8')
+  await page.getByLabel('Datum skupina 2').fill(secondExpiry)
+  await expect(page.getByText('Zbývá rozdělit 6 balení.')).toBeVisible()
+  await page.getByRole('button', { name: 'Přidat další datum' }).click()
+  await page.getByLabel('Počet balení skupina 3').fill('6')
+  await page.getByLabel('Datum skupina 3').fill(thirdExpiry)
+  await expect(page.getByText('Rozděleno 24 balení z 24 balení.')).toBeVisible()
   await page.getByRole('button', { name: 'Přidat balení' }).click()
 
   await expect(page).toHaveURL(/\/inventory$/)
   let productCard = page.getByRole('article').filter({ hasText: 'Eidam EAN' })
   await expect(productCard).toContainText('Doma 24 balení · 100 g / balení')
+  await expect(productCard).toContainText('10 balení · 100 g / balení')
+  await expect(productCard).toContainText('8 balení · 100 g / balení')
+  await expect(productCard).toContainText('6 balení · 100 g / balení')
+  await expect(productCard).toContainText('za 2 dny')
+  await expect(productCard).toContainText('za 5 dny')
+  await expect(productCard).toContainText('za 9 dny')
   expect(packagedExternalLookups).toBe(1)
 
   await productCard.getByRole('button', { name: 'Spotřebovat Eidam EAN' }).click()
@@ -119,6 +152,9 @@ test('barcode entry stays usable for known, unknown, packaged and unavailable pr
   await expect(consumeDialog).toBeHidden()
   productCard = page.getByRole('article').filter({ hasText: 'Eidam EAN' })
   await expect(productCard).toContainText('Doma 23 balení · 100 g / balení')
+  await expect(productCard).toContainText('9 balení · 100 g / balení')
+  await expect(productCard).toContainText('8 balení · 100 g / balení')
+  await expect(productCard).toContainText('6 balení · 100 g / balení')
 
   await page.getByRole('link', { name: 'Přidat jídlo' }).click()
   await page.getByLabel('Čárový kód').fill(packagedEan)
@@ -126,6 +162,13 @@ test('barcode entry stays usable for known, unknown, packaged and unavailable pr
   await expect(page.getByRole('status')).toContainText('Tenhle kód už známe jako Eidam EAN')
   await expect(page.getByLabel('Co přidáváš?')).toHaveValue(/.+/)
   await page.getByLabel('Kolik balení máš?').fill('2')
+  await page.getByLabel('Datum na obalu').selectOption('best_before')
+  await page.getByRole('button', { name: 'Mají různá data' }).click()
+  await page.getByLabel('Počet balení skupina 1').fill('1')
+  await page.getByLabel('Datum skupina 1').fill(repeatedFirstExpiry)
+  await page.getByLabel('Počet balení skupina 2').fill('1')
+  await page.getByLabel('Datum skupina 2').fill(repeatedSecondExpiry)
+  await expect(page.getByText('Rozděleno 2 balení z 2 balení.')).toBeVisible()
   await page.getByRole('button', { name: 'Přidat balení' }).click()
   await expect(page).toHaveURL(/\/inventory$/)
   productCard = page.getByRole('article').filter({ hasText: 'Eidam EAN' })
