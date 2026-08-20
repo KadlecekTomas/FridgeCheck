@@ -152,7 +152,7 @@ export default function ShoppingPage() {
     return (
       <div className="mx-auto max-w-lg rounded-2xl border border-danger/20 bg-surface p-6" role="alert">
         <h1 className="text-xl font-bold text-text">Nákup se nepodařilo načíst</h1>
-        <p className="mt-2 text-sm leading-6 text-text-muted">Nic jsme nezměnili. Zkontroluj připojení a zkus to znovu.</p>
+        <p className="mt-2 text-sm leading-6 text-text-muted">Aktuální data se nepodařilo načíst. Zkontroluj připojení a zkus to znovu.</p>
         <button type="button" className="button-primary mt-5" onClick={() => void dashboard.refresh()} disabled={dashboard.refreshing}>
           {dashboard.refreshing ? 'Načítám…' : 'Zkusit znovu'}
         </button>
