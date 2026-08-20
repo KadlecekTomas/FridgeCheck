@@ -85,7 +85,7 @@ test('recoverable failures never masquerade as empty household data', async ({ p
 
   await page.getByRole('button', { name: 'Odhlásit se' }).click()
   await expect(page).toHaveURL(/\/more$/)
-  await expect(page.getByRole('alert')).toContainText('Odhlášení se nepodařilo')
+  await expect(page.locator('main').getByRole('alert')).toContainText('Odhlášení se nepodařilo')
   await expect(page.getByRole('button', { name: 'Odhlásit se' })).toBeEnabled()
 
   failLogout = false
