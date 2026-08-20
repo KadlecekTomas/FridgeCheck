@@ -2,19 +2,21 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { FormEvent, useId, useMemo, useState } from 'react'
+import { FormEvent, useId, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, PackagePlus, Search } from 'lucide-react'
+import { ArrowLeft, PackagePlus, Plus, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { BarcodeScannerAction } from '@/components/app/BarcodeScannerAction'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
 import { normalizeBarcode, type OpenFoodFactsProduct } from '@/domain/products/openFoodFacts'
+import { buildPackageExpiryBatches, type CanonicalExpiryBatch } from '@/domain/inventory/expiryGroups'
 import {
   formatPackageCount,
   formatQuantity,
   hasAtMostThreeDecimals,
+  roundInventoryQuantity,
   totalForPackages,
 } from '@/domain/inventory/quantity'
 import type { Enums, Tables } from '@/types/supabase-v2'
@@ -26,6 +28,12 @@ type ProductLookupPayload = {
   found: boolean
   product?: OpenFoodFactsProduct
   error?: string
+}
+
+type ExpiryGroupDraft = {
+  id: number
+  packageCount: string
+  expiryDate: string
 }
 
 const UNITS: { value: InventoryUnit; label: string }[] = [
@@ -68,8 +76,11 @@ export default function NewInventoryPage() {
   const [storageUnitId, setStorageUnitId] = useState('')
   const [expiryType, setExpiryType] = useState<ExpiryType>('unknown')
   const [expiryDate, setExpiryDate] = useState('')
+  const [differentExpiryDates, setDifferentExpiryDates] = useState(false)
+  const [expiryGroups, setExpiryGroups] = useState<ExpiryGroupDraft[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const expiryGroupId = useRef(0)
   const productSelectId = useId()
   const unitSelectId = useId()
   const packageUnitSelectId = useId()
@@ -97,6 +108,25 @@ export default function NewInventoryPage() {
       ? packageUnit
       : null
   const usesPackages = existingIsPackaged || (mode === 'new' && entryMode === 'packages')
+  const groupedPackageCount = useMemo(
+    () => roundInventoryQuantity(expiryGroups.reduce((sum, group) => sum + (Number(group.packageCount) || 0), 0)),
+    [expiryGroups]
+  )
+  const expectedPackageCount = Number(packageCount)
+  const remainingPackageCount = Number.isFinite(expectedPackageCount)
+    ? roundInventoryQuantity(expectedPackageCount - groupedPackageCount)
+    : 0
+
+  const makeExpiryGroup = (groupPackageCount = '', groupExpiryDate = ''): ExpiryGroupDraft => ({
+    id: ++expiryGroupId.current,
+    packageCount: groupPackageCount,
+    expiryDate: groupExpiryDate,
+  })
+
+  const resetExpirySplit = () => {
+    setDifferentExpiryDates(false)
+    setExpiryGroups([])
+  }
 
   const resetExternalProduct = () => {
     setName('')
@@ -109,6 +139,7 @@ export default function NewInventoryPage() {
     setPackageCount('1')
     setPackageQuantity('1')
     setPackageUnit('pcs')
+    resetExpirySplit()
   }
 
   const selectKnownProduct = (product: Tables<'products'>, normalizedEan: string) => {
@@ -117,6 +148,7 @@ export default function NewInventoryPage() {
     setEan(normalizedEan)
     setPackageCount('1')
     setQuantity('1')
+    resetExpirySplit()
     setLookupError(null)
     setImageUrl(product.image_url)
     setLookupStatus(
@@ -241,7 +273,29 @@ export default function NewInventoryPage() {
       }
     }
 
-    if (expiryType !== 'unknown' && !expiryDate) {
+    let splitExpiryBatches: CanonicalExpiryBatch[] | null = null
+    if (usesPackages && differentExpiryDates) {
+      if (!resolvedPackageQuantity) {
+        setError('Velikost jednoho balení chybí.')
+        return
+      }
+      const splitResult = buildPackageExpiryBatches(
+        Number(packageCount),
+        resolvedPackageQuantity,
+        expiryType,
+        expiryGroups.map((group) => ({
+          packageCount: Number(group.packageCount),
+          expiryDate: group.expiryDate,
+        }))
+      )
+      if (!splitResult.ok) {
+        setError(splitResult.error)
+        return
+      }
+      splitExpiryBatches = splitResult.batches
+    }
+
+    if (!differentExpiryDates && expiryType !== 'unknown' && !expiryDate) {
       setError('Vyber datum, nebo nech „Bez známého data“.')
       return
     }
@@ -260,8 +314,26 @@ export default function NewInventoryPage() {
         ? { p_expiry_type: 'unknown' as const }
         : { p_expiry_type: expiryType, p_expiry_date: expiryDate }
 
-    const result =
-      mode === 'existing'
+    const result = splitExpiryBatches
+      ? await supabase.rpc('save_product_expiry_batches', {
+          p_household_id: activeHousehold.id,
+          p_storage_unit_id: resolvedStorageId,
+          p_unit: resolvedUnit,
+          p_batches: splitExpiryBatches.map((batch) => ({
+            quantity: batch.quantity,
+            expiry_type: batch.expiry_type,
+            expiry_date: batch.expiry_date,
+          })),
+          p_product_id: mode === 'existing' ? selectedProduct?.id : undefined,
+          p_name: mode === 'new' ? name.trim() : undefined,
+          p_brand: mode === 'new' ? brand.trim() || undefined : undefined,
+          p_ean_code: mode === 'new' ? normalizedEan || undefined : undefined,
+          p_category: mode === 'new' ? category.trim() || undefined : undefined,
+          p_image_url: mode === 'new' ? imageUrl || undefined : undefined,
+          p_package_quantity: mode === 'new' && usesPackages ? resolvedPackageQuantity ?? undefined : undefined,
+          p_package_unit: mode === 'new' && usesPackages ? (resolvedPackageUnit as InventoryUnit) : undefined,
+        })
+      : mode === 'existing'
         ? selectedProduct
           ? await supabase.rpc('add_batch_to_product', {
               p_product_id: selectedProduct.id,
@@ -294,7 +366,9 @@ export default function NewInventoryPage() {
 
     toast.success(
       usesPackages
-        ? `${formatPackageCount(Number(packageCount))} uloženo.`
+        ? differentExpiryDates
+          ? `${formatPackageCount(Number(packageCount))} uloženo podle ${expiryGroups.length} dat.`
+          : `${formatPackageCount(Number(packageCount))} uloženo.`
         : mode === 'existing'
           ? 'Další zásoba je uložená.'
           : 'Jídlo je uložené.'
@@ -364,6 +438,7 @@ export default function NewInventoryPage() {
                 setMode('new')
                 setProductId('')
                 setLookupStatus(null)
+                resetExpirySplit()
               }}
               className={`min-h-11 rounded-xl px-3 text-sm font-semibold transition ${
                 mode === 'new' ? 'bg-surface text-primary shadow-sm' : 'text-text-muted hover:text-text'
@@ -376,6 +451,7 @@ export default function NewInventoryPage() {
               onClick={() => {
                 setMode('existing')
                 setLookupStatus(null)
+                resetExpirySplit()
               }}
               className={`min-h-11 rounded-xl px-3 text-sm font-semibold transition ${
                 mode === 'existing' ? 'bg-surface text-primary shadow-sm' : 'text-text-muted hover:text-text'
@@ -436,6 +512,7 @@ export default function NewInventoryPage() {
                   if (product?.ean_code) setEan(product.ean_code)
                   setPackageCount('1')
                   setQuantity('1')
+                  resetExpirySplit()
                 }}
                 required
               >
@@ -562,6 +639,7 @@ export default function NewInventoryPage() {
                     setEntryMode('amount')
                     setUnit(packageUnit)
                     setQuantity('1')
+                    resetExpirySplit()
                   }}
                 >
                   Radši zadám celkové množství
@@ -604,6 +682,7 @@ export default function NewInventoryPage() {
                     setPackageUnit(unit)
                     setPackageQuantity('1')
                     setPackageCount('1')
+                    resetExpirySplit()
                   }}
                 >
                   Přidávám více stejných balení
@@ -628,7 +707,10 @@ export default function NewInventoryPage() {
                 onChange={(event) => {
                   const next = event.target.value as ExpiryType
                   setExpiryType(next)
-                  if (next === 'unknown') setExpiryDate('')
+                  if (next === 'unknown') {
+                    setExpiryDate('')
+                    resetExpirySplit()
+                  }
                 }}
               >
                 <option value="unknown">Nevím / není uvedené</option>
@@ -636,18 +718,146 @@ export default function NewInventoryPage() {
                 <option value="best_before">Minimální trvanlivost</option>
               </select>
             </label>
-            <label className="block">
-              <span className="field-label">Datum</span>
-              <input
-                className="input-field disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
-                type="date"
-                value={expiryDate}
-                onChange={(event) => setExpiryDate(event.target.value)}
-                disabled={expiryType === 'unknown'}
-                required={expiryType !== 'unknown'}
-              />
-            </label>
+            {!differentExpiryDates ? (
+              <label className="block">
+                <span className="field-label">Datum</span>
+                <input
+                  className="input-field disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
+                  type="date"
+                  value={expiryDate}
+                  onChange={(event) => setExpiryDate(event.target.value)}
+                  disabled={expiryType === 'unknown'}
+                  required={expiryType !== 'unknown'}
+                />
+              </label>
+            ) : (
+              <div className="self-end rounded-xl bg-primary-soft px-3 py-2 text-sm font-medium text-primary">
+                Každá skupina má vlastní datum
+              </div>
+            )}
           </div>
+
+          {usesPackages && expiryType !== 'unknown' && !differentExpiryDates && Number(packageCount) > 1 ? (
+            <button
+              type="button"
+              className="button-secondary w-full sm:w-auto"
+              onClick={() => {
+                setExpiryGroups([
+                  makeExpiryGroup(packageCount, expiryDate),
+                  makeExpiryGroup('', ''),
+                ])
+                setDifferentExpiryDates(true)
+                setError(null)
+              }}
+            >
+              Mají různá data
+            </button>
+          ) : null}
+
+          {usesPackages && differentExpiryDates ? (
+            <div className="rounded-2xl border border-primary/15 bg-primary-soft/30 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="font-semibold text-text">Rozděl balení podle data</h2>
+                  <p className="mt-1 text-sm leading-5 text-text-muted">
+                    Zadej jen skupiny, které mají stejné datum na obalu. Součet musí být {formatPackageCount(Number(packageCount) || 0)}.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="shrink-0 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+                  onClick={() => {
+                    const firstDate = expiryGroups.find((group) => group.expiryDate)?.expiryDate
+                    if (firstDate) setExpiryDate(firstDate)
+                    resetExpirySplit()
+                    setError(null)
+                  }}
+                >
+                  Všechna mají stejné datum
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {expiryGroups.map((group, index) => (
+                  <div
+                    key={group.id}
+                    className="grid gap-3 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
+                    role="group"
+                    aria-label={`Skupina data ${index + 1}`}
+                  >
+                    <label className="block">
+                      <span className="field-label">Počet balení</span>
+                      <input
+                        className="input-field"
+                        type="number"
+                        min="0.001"
+                        step="0.001"
+                        inputMode="decimal"
+                        value={group.packageCount}
+                        onChange={(event) => {
+                          const nextValue = event.target.value
+                          setExpiryGroups((current) => current.map((item) =>
+                            item.id === group.id ? { ...item, packageCount: nextValue } : item
+                          ))
+                        }}
+                        aria-label={`Počet balení skupina ${index + 1}`}
+                        required
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="field-label">Datum</span>
+                      <input
+                        className="input-field"
+                        type="date"
+                        value={group.expiryDate}
+                        onChange={(event) => {
+                          const nextValue = event.target.value
+                          setExpiryGroups((current) => current.map((item) =>
+                            item.id === group.id ? { ...item, expiryDate: nextValue } : item
+                          ))
+                        }}
+                        aria-label={`Datum skupina ${index + 1}`}
+                        required
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="button-secondary px-3"
+                      onClick={() => setExpiryGroups((current) => current.filter((item) => item.id !== group.id))}
+                      disabled={expiryGroups.length <= 2}
+                      aria-label={`Smazat skupinu ${index + 1}`}
+                      title={expiryGroups.length <= 2 ? 'Pro různá data jsou potřeba alespoň dvě skupiny.' : 'Smazat skupinu'}
+                    >
+                      <Trash2 size={17} aria-hidden="true" />
+                      <span className="sm:sr-only">Smazat</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => setExpiryGroups((current) => [...current, makeExpiryGroup('', '')])}
+                  disabled={expiryGroups.length >= 50}
+                >
+                  <Plus size={17} aria-hidden="true" />
+                  Přidat další datum
+                </button>
+                <p
+                  className={`text-sm font-semibold ${remainingPackageCount === 0 ? 'text-primary' : remainingPackageCount > 0 ? 'text-warning' : 'text-danger'}`}
+                  role="status"
+                >
+                  {remainingPackageCount === 0
+                    ? `Rozděleno ${formatPackageCount(groupedPackageCount)} z ${formatPackageCount(Number(packageCount) || 0)}.`
+                    : remainingPackageCount > 0
+                      ? `Zbývá rozdělit ${formatPackageCount(remainingPackageCount)}.`
+                      : `Rozděleno je o ${formatPackageCount(Math.abs(remainingPackageCount))} víc.`}
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           {error ? <div className="rounded-xl bg-danger/8 px-4 py-3 text-sm text-danger" role="alert">{error}</div> : null}
 
