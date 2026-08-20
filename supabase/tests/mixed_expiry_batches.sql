@@ -13,7 +13,7 @@ declare
   household_b uuid;
   storage_a uuid;
   storage_b uuid;
-  product_id uuid;
+  target_product_id uuid;
   repeated_product_id uuid;
   before_batch_count integer;
   before_event_count integer;
@@ -26,7 +26,7 @@ begin
   where household_id = household_a
     and name = 'Lednice';
 
-  product_id := public.save_product_expiry_batches(
+  target_product_id := public.save_product_expiry_batches(
     p_household_id => household_a,
     p_storage_unit_id => storage_a,
     p_unit => 'g',
@@ -41,7 +41,7 @@ begin
     p_package_unit => 'g'
   );
 
-  if product_id is null then
+  if target_product_id is null then
     raise exception 'Expected product id from mixed expiry save';
   end if;
 
@@ -52,7 +52,7 @@ begin
   if not exists (
     select 1
     from public.products
-    where id = product_id
+    where id = target_product_id
       and package_quantity = 100
       and package_unit = 'g'
       and default_unit = 'g'
@@ -60,24 +60,24 @@ begin
     raise exception 'Package metadata was not preserved';
   end if;
 
-  if (select count(*) from public.inventory_batches where product_id = product_id) <> 3 then
+  if (select count(*) from public.inventory_batches where product_id = target_product_id) <> 3 then
     raise exception 'Expected three expiry-specific batches';
   end if;
 
   if not exists (
     select 1 from public.inventory_batches
-    where product_id = product_id and quantity = 1000 and expiry_date = current_date + 5 and expiry_type = 'use_by'
+    where product_id = target_product_id and quantity = 1000 and expiry_date = current_date + 5 and expiry_type = 'use_by'
   ) or not exists (
     select 1 from public.inventory_batches
-    where product_id = product_id and quantity = 800 and expiry_date = current_date + 12 and expiry_type = 'use_by'
+    where product_id = target_product_id and quantity = 800 and expiry_date = current_date + 12 and expiry_type = 'use_by'
   ) or not exists (
     select 1 from public.inventory_batches
-    where product_id = product_id and quantity = 600 and expiry_date = current_date + 20 and expiry_type = 'use_by'
+    where product_id = target_product_id and quantity = 600 and expiry_date = current_date + 20 and expiry_type = 'use_by'
   ) then
     raise exception 'Mixed expiry quantities or dates were not stored correctly';
   end if;
 
-  if (select count(*) from public.inventory_events where product_id = product_id and type = 'purchase') <> 3 then
+  if (select count(*) from public.inventory_events where product_id = target_product_id and type = 'purchase') <> 3 then
     raise exception 'Expected one purchase event for every mixed-expiry batch';
   end if;
 
@@ -95,7 +95,7 @@ begin
     p_package_unit => 'g'
   );
 
-  if repeated_product_id <> product_id then
+  if repeated_product_id <> target_product_id then
     raise exception 'Repeated EAN did not reuse the household product';
   end if;
 
@@ -103,7 +103,7 @@ begin
     raise exception 'Repeated mixed-expiry EAN duplicated the product';
   end if;
 
-  if (select count(*) from public.inventory_batches where product_id = product_id) <> 5 then
+  if (select count(*) from public.inventory_batches where product_id = target_product_id) <> 5 then
     raise exception 'Repeated mixed-expiry save did not add both physical batches';
   end if;
 
@@ -115,15 +115,15 @@ begin
       jsonb_build_object('quantity', 300, 'expiry_type', 'use_by', 'expiry_date', (current_date + 60)::text),
       jsonb_build_object('quantity', 400, 'expiry_type', 'use_by', 'expiry_date', (current_date + 70)::text)
     ),
-    p_product_id => product_id
+    p_product_id => target_product_id
   );
 
-  if (select count(*) from public.inventory_batches where product_id = product_id) <> 7 then
+  if (select count(*) from public.inventory_batches where product_id = target_product_id) <> 7 then
     raise exception 'Existing-product mixed-expiry save did not add both batches';
   end if;
 
-  select count(*) into before_batch_count from public.inventory_batches where product_id = product_id;
-  select count(*) into before_event_count from public.inventory_events where product_id = product_id and type = 'purchase';
+  select count(*) into before_batch_count from public.inventory_batches where product_id = target_product_id;
+  select count(*) into before_event_count from public.inventory_events where product_id = target_product_id and type = 'purchase';
 
   begin
     perform public.save_product_expiry_batches(
@@ -134,17 +134,17 @@ begin
         jsonb_build_object('quantity', 100, 'expiry_type', 'use_by', 'expiry_date', (current_date + 80)::text),
         jsonb_build_object('quantity', -100, 'expiry_type', 'use_by', 'expiry_date', (current_date + 90)::text)
       ),
-      p_product_id => product_id
+      p_product_id => target_product_id
     );
     raise exception 'Invalid mixed-expiry group was unexpectedly accepted';
   exception
     when invalid_parameter_value then null;
   end;
 
-  if (select count(*) from public.inventory_batches where product_id = product_id) <> before_batch_count then
+  if (select count(*) from public.inventory_batches where product_id = target_product_id) <> before_batch_count then
     raise exception 'Invalid mixed-expiry request partially wrote a batch';
   end if;
-  if (select count(*) from public.inventory_events where product_id = product_id and type = 'purchase') <> before_event_count then
+  if (select count(*) from public.inventory_events where product_id = target_product_id and type = 'purchase') <> before_event_count then
     raise exception 'Invalid mixed-expiry request partially wrote a purchase event';
   end if;
 
@@ -156,7 +156,7 @@ begin
       p_batches => jsonb_build_array(
         jsonb_build_object('quantity', 100, 'expiry_type', 'use_by', 'expiry_date', (current_date + 1)::text)
       ),
-      p_product_id => product_id
+      p_product_id => target_product_id
     );
     raise exception 'A single group was unexpectedly accepted by the mixed-expiry RPC';
   exception
@@ -181,7 +181,7 @@ begin
         jsonb_build_object('quantity', 100, 'expiry_type', 'use_by', 'expiry_date', (current_date + 1)::text),
         jsonb_build_object('quantity', 100, 'expiry_type', 'use_by', 'expiry_date', (current_date + 2)::text)
       ),
-      p_product_id => product_id
+      p_product_id => target_product_id
     );
     raise exception 'Cross-household storage was unexpectedly accepted';
   exception
