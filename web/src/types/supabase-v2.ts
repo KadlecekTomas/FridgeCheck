@@ -337,7 +337,7 @@ export type Database = {
         Returns: number
       }
       correct_inventory_batch: {
-        Args: { p_batch_id: string; p_new_quantity: number; p_reason: string }
+        Args: { p_batch_id: string; p_new_quantity: number; p_reason?: string }
         Returns: number
       }
       create_household: {

@@ -111,8 +111,9 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
   await productCard.getByRole('button', { name: 'Srovnat stav Vejce' }).click()
   const correctionDialog = page.getByRole('dialog', { name: 'Srovnat skutečný stav' })
   await expect(correctionDialog).toContainText('Teď evidujeme 5 ks')
+  await expect(correctionDialog.getByLabel('Poznámka')).toBeVisible()
   await correctionDialog.getByLabel('Skutečné množství').fill('6')
-  await correctionDialog.getByLabel('Proč stav opravuješ?').fill('přepočítáno doma')
+  await expect(correctionDialog.getByRole('button', { name: 'Srovnat', exact: true })).toBeEnabled()
   await correctionDialog.getByRole('button', { name: 'Srovnat', exact: true }).click()
   await expect(correctionDialog).not.toBeVisible()
   await expect(productCard).toContainText('Doma 6 ks')
@@ -200,7 +201,7 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
 
   const correctionEvent = page.getByRole('article', { name: 'Oprava stavu · Vejce' })
   await expect(correctionEvent).toContainText('+1 ks')
-  await expect(correctionEvent).toContainText('přepočítáno doma')
+  await expect(correctionEvent).not.toContainText('přepočítáno doma')
 
   const discardEvent = page.getByRole('article', { name: 'Vyhození · Skyr' })
   await expect(discardEvent).toContainText('−2 ks')
