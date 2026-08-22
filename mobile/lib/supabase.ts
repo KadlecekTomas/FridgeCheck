@@ -1,9 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 
-export const supabase = createClient(
-  Constants.expoConfig?.extra?.supabaseUrl,
-  Constants.expoConfig?.extra?.supabaseAnonKey
-);
-console.log("SUPABASE_URL:", Constants.expoConfig?.extra?.supabaseUrl);
-console.log("supabaseAnonKey:", Constants.expoConfig?.extra?.supabaseAnonKey);
+const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl;
+const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey;
+
+if (typeof supabaseUrl !== "string" || !supabaseUrl) {
+  throw new Error("Missing Expo Supabase URL configuration.");
+}
+
+if (typeof supabaseAnonKey !== "string" || !supabaseAnonKey) {
+  throw new Error("Missing Expo Supabase anonymous key configuration.");
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
