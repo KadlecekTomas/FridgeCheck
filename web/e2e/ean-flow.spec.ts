@@ -96,17 +96,17 @@ test('barcode entry stays usable for known, unknown, packaged and unavailable pr
   await expect(page).toHaveURL(/\/dashboard$/)
   await page.getByLabel('Název domácnosti').fill('EAN domácnost')
   await page.getByRole('button', { name: 'Vytvořit domácnost' }).click()
-  await expect(page.getByRole('heading', { name: 'Co dnes potřebuje pozornost' })).toBeVisible()
-
-  await page.getByRole('link', { name: 'Přidat', exact: true }).click()
   await expect(page).toHaveURL(/\/inventory\/new$/)
-  await expect(page.getByLabel('Čárový kód')).toBeFocused()
+  await expect(page.getByRole('heading', { name: 'Přidat jídlo' })).toBeVisible()
+  await expect(page.getByLabel('Čárový kód')).not.toBeFocused()
 
   await page.getByRole('button', { name: 'Skenovat kamerou' }).click()
   const scannerDialog = page.getByRole('dialog', { name: 'Namiř kameru na čárový kód' })
   await expect(scannerDialog).toBeVisible()
+  await expect(scannerDialog).toContainText('Čárový kód')
+  await expect(scannerDialog).not.toContainText('EAN')
   await expect(scannerDialog.getByRole('status')).toContainText('Povol HlídačiJídla přístup ke kameře')
-  await scannerDialog.getByRole('button', { name: 'Zavřít a zadat EAN ručně' }).click()
+  await scannerDialog.getByRole('button', { name: 'Zavřít a opsat kód ručně' }).click()
   await expect(scannerDialog).toBeHidden()
 
   await page.getByLabel('Čárový kód').fill(packagedEan)

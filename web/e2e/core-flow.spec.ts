@@ -29,8 +29,9 @@ test('user can manage storage, consume by FEFO, correct stock, discard and inspe
 
   await page.getByLabel('Název domácnosti').fill('E2E domácnost')
   await page.getByRole('button', { name: 'Vytvořit domácnost' }).click()
-  await expect(page.getByRole('heading', { name: 'Co dnes potřebuje pozornost' })).toBeVisible()
-  await expect(page.getByText('Lednice')).toBeVisible()
+  await expect(page).toHaveURL(/\/inventory\/new$/)
+  await expect(page.getByRole('heading', { name: 'Přidat jídlo' })).toBeVisible()
+  await expect(page.getByLabel('Čárový kód')).not.toBeFocused()
 
   await page.getByRole('link', { name: 'Více', exact: true }).click()
   await expect(page).toHaveURL(/\/more$/)

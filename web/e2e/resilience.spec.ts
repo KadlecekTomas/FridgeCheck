@@ -14,7 +14,8 @@ test('recoverable failures never masquerade as empty household data', async ({ p
 
   await page.getByLabel('Název domácnosti').fill('Odolná domácnost')
   await page.getByRole('button', { name: 'Vytvořit domácnost' }).click()
-  await expect(page.getByRole('heading', { name: 'Co dnes potřebuje pozornost' })).toBeVisible()
+  await expect(page).toHaveURL(/\/inventory\/new$/)
+  await expect(page.getByRole('heading', { name: 'Přidat jídlo' })).toBeVisible()
 
   let failHouseholds = true
   await page.route('**/rest/v1/households*', async (route) => {
@@ -38,7 +39,9 @@ test('recoverable failures never masquerade as empty household data', async ({ p
 
   failHouseholds = false
   await page.getByRole('button', { name: 'Zkusit znovu' }).click()
-  await expect(page.getByRole('heading', { name: 'Co dnes potřebuje pozornost' })).toBeVisible()
+  await expect(page).toHaveURL(/\/inventory\/new$/)
+  await expect(page.getByRole('heading', { name: 'Přidat jídlo' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: 'Kam to dáváš?' })).toHaveValue(/.+/)
   await page.unroute('**/rest/v1/households*')
 
   let failProducts = true
