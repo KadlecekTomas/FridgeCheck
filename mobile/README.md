@@ -28,8 +28,20 @@ The same household isolation and authorization rules apply to native clients.
 
 A native app is still an untrusted client. Never ship privileged Supabase/service credentials in the application bundle.
 
-## Testing
+## Testing and CI
 
 Do not expand this client without establishing an appropriate automated test and CI strategy for the behavior being added.
 
-The existence of basic mobile CI is not proof of production readiness.
+For dependency or source changes under `mobile/`, the PR quality gate installs the lockfile exactly, runs ESLint, runs strict TypeScript checking, and verifies that the installed Expo package versions are aligned with the current SDK. The workflow also runs after merge on relevant pushes to `main`.
+
+Local baseline:
+
+```bash
+cd mobile
+npm ci
+npm run lint
+npm run typecheck
+npx --no-install expo install --check
+```
+
+The mobile workflow intentionally validates the existing prototype rather than treating it as a production-ready native application. Native build/device/E2E coverage remains a future requirement if the native client becomes an active product target.

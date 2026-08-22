@@ -2,23 +2,53 @@ name: Mobile CI
 
 on:
   push:
+    branches:
+      - main
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile.yml'
+  pull_request:
+    branches:
+      - main
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile.yml'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  quality:
+    name: Mobile quality
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: mobile
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - run: npm ci
-      - run: npm run lint
-      - run: npx expo install
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Validate Expo dependency alignment
+        run: npx --no-install expo install --check
