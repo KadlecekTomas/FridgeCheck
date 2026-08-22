@@ -96,6 +96,15 @@ jobs:
         working-directory: web
         run: npx playwright test --reporter=line
 
+      - name: Upload landing page previews
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fridgecheck-landing-preview
+          path: web/test-results/landing-page-*.png
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload E2E failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
