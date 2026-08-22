@@ -94,7 +94,7 @@ export default async function LandingPage() {
               Přehled domácnosti bez tabulek a chaosu
             </div>
 
-            <h1 className="mt-6 text-[2.75rem] font-bold leading-[0.98] tracking-[-0.06em] text-text sm:text-6xl xl:text-[4.65rem]">
+            <h1 className="mt-6 text-[2.6rem] font-bold leading-[1.06] tracking-[-0.025em] text-text sm:text-6xl sm:leading-[1.04] sm:tracking-[-0.035em] xl:text-[4.65rem] xl:leading-[1.03] xl:tracking-[-0.04em]">
               Mějte doma pořádek v jídle.
               <span className="mt-2 block text-primary">Bez chaosu. Bez plýtvání.</span>
             </h1>
@@ -141,7 +141,7 @@ export default async function LandingPage() {
       <section id="funkce" className="mx-auto max-w-7xl px-4 py-20 md:px-6 md:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-bold text-primary">Od nákupu po poslední balení</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-[-0.045em] text-text sm:text-5xl">
+          <h2 className="mt-3 text-3xl font-bold tracking-[-0.045em] text-text sm:text-5xl sm:leading-[1.08]">
             Jedna aplikace. Čtyři momenty, kdy konečně nemusíte přemýšlet, co je doma.
           </h2>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-text-muted sm:text-lg">
@@ -192,7 +192,7 @@ export default async function LandingPage() {
           <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
             <div className="max-w-xl">
               <p className="text-sm font-bold text-[#A7D6B8]">Jak to funguje</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl">Méně správy. Více jistoty před otevřením lednice.</h2>
+              <h2 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl sm:leading-[1.08]">Méně správy. Více jistoty před otevřením lednice.</h2>
               <p className="mt-5 text-base leading-7 text-white/68">Každý krok je krátký. Produkt přidáte, běžně spotřebováváte a aplikace drží přehled za vás.</p>
             </div>
 
@@ -209,7 +209,7 @@ export default async function LandingPage() {
         <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
           <div className="max-w-xl">
             <p className="text-sm font-bold text-primary">Navržené pro realitu doma</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl">Ne další administrace. Nástroj, který musí být rychlejší než papír.</h2>
+            <h2 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl sm:leading-[1.08]">Ne další administrace. Nástroj, který musí být rychlejší než papír.</h2>
             <p className="mt-5 text-base leading-7 text-text-muted">HlídačJídla stavíme kolem jednoduchého pravidla: evidence jídla má šetřit čas a mentální energii, ne vytvářet další povinnost.</p>
           </div>
 
@@ -229,7 +229,7 @@ export default async function LandingPage() {
           <div className="relative flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
             <div className="max-w-3xl">
               <p className="text-sm font-bold text-white/65">HlídačJídla</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl">Otevřete lednici. A už předem víte, co v ní je.</h2>
+              <h2 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl sm:leading-[1.08]">Otevřete lednici. A už předem víte, co v ní je.</h2>
               <p className="mt-4 max-w-2xl text-base leading-7 text-white/70">Začněte první domácností a přidejte první produkt. Bez složitého nastavování — první přehled vzniká hned s první zásobou.</p>
             </div>
             <Link href={primaryHref} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-primary transition hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">

@@ -95,7 +95,7 @@ export default function InventoryHistoryPage() {
         </p>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrovat historii">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrovat historii">
         {FILTERS.map((item) => (
           <button
             key={item.value}
