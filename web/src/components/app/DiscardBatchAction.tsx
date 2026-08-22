@@ -178,9 +178,9 @@ export function DiscardBatchAction({
                 {usesPackages && packageQuantity && packageUnit ? <p className="mt-1.5 text-xs text-text-muted">1 balení = {formatQuantity(packageQuantity, packageUnit)}</p> : null}
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-danger/5 px-3 py-2.5 text-sm">
-                <span className="text-text-muted">V této zásobě</span>
-                <button type="button" className="font-semibold text-danger underline-offset-4 hover:underline" onClick={() => setQuantity(String(usesPackages && availablePackages !== null ? availablePackages : availableQuantity))}>
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-danger/5 px-2 py-1.5 text-sm sm:px-3 sm:py-2.5">
+                <span className="px-1 text-text-muted">V této zásobě</span>
+                <button type="button" className="inline-flex min-h-11 items-center rounded-lg px-2 font-semibold text-danger underline-offset-4 hover:bg-white/60 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger" onClick={() => setQuantity(String(usesPackages && availablePackages !== null ? availablePackages : availableQuantity))}>
                   Všechno · {formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit)}
                 </button>
               </div>

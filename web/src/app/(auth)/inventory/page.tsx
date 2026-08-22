@@ -83,7 +83,7 @@ export default function InventoryPage() {
       {dashboard.error ? (
         <div className="rounded-2xl border border-danger/20 bg-danger/5 p-5">
           <p className="font-semibold text-danger">Zásoby se nepodařilo načíst.</p>
-          <p className="mt-1 text-sm text-text-muted">Nic se nezměnilo.</p>
+          <p className="mt-1 text-sm text-text-muted">Aktuální stav zásob se nepodařilo načíst.</p>
           <button className="button-secondary mt-4" onClick={() => void dashboard.refresh()}>Zkusit znovu</button>
         </div>
       ) : dashboard.loading ? (

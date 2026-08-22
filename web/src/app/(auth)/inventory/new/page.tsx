@@ -385,7 +385,7 @@ export default function NewInventoryPage() {
     return (
       <div className="mx-auto max-w-lg rounded-2xl border border-danger/20 bg-surface p-6">
         <h1 className="text-xl font-bold text-text">Zásoby se nepodařilo načíst</h1>
-        <p className="mt-2 text-sm text-text-muted">Nic se nezměnilo. Zkus načtení znovu.</p>
+        <p className="mt-2 text-sm text-text-muted">Aktuální stav zásob se nepodařilo načíst. Zkus to znovu.</p>
         <button className="button-secondary mt-5" onClick={() => void dashboard.refresh()}>Zkusit znovu</button>
       </div>
     )
@@ -560,8 +560,8 @@ export default function NewInventoryPage() {
                 />
               </label>
 
-              <details className="rounded-2xl border border-border bg-canvas/50 px-4 py-3">
-                <summary className="cursor-pointer text-sm font-semibold text-text">Upřesnit značku nebo kategorii</summary>
+              <details className="rounded-2xl border border-border bg-canvas/50 px-4 py-2">
+                <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-text">Upřesnit značku nebo kategorii</summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <label className="block">
                     <span className="field-label">Značka <span className="font-normal text-text-muted">volitelně</span></span>
@@ -633,7 +633,7 @@ export default function NewInventoryPage() {
               {mode === 'new' ? (
                 <button
                   type="button"
-                  className="mt-3 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+                  className="mt-2 inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-primary underline-offset-4 hover:bg-white/60 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   onClick={() => {
                     setEntryMode('amount')
                     setUnit(packageUnit)
@@ -675,7 +675,7 @@ export default function NewInventoryPage() {
               {mode === 'new' ? (
                 <button
                   type="button"
-                  className="sm:col-span-2 justify-self-start text-sm font-semibold text-primary underline-offset-4 hover:underline"
+                  className="inline-flex min-h-11 items-center justify-self-start rounded-lg px-2 text-sm font-semibold text-primary underline-offset-4 hover:bg-primary-soft hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:col-span-2"
                   onClick={() => {
                     setEntryMode('packages')
                     setPackageUnit(unit)
@@ -764,7 +764,7 @@ export default function NewInventoryPage() {
                 </div>
                 <button
                   type="button"
-                  className="shrink-0 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+                  className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-2 text-sm font-semibold text-primary underline-offset-4 hover:bg-white/60 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   onClick={() => {
                     const firstDate = expiryGroups.find((group) => group.expiryDate)?.expiryDate
                     if (firstDate) setExpiryDate(firstDate)

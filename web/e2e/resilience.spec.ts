@@ -33,7 +33,7 @@ test('recoverable failures never masquerade as empty household data', async ({ p
 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Domácnosti se nepodařilo načíst' })).toBeVisible()
-  await expect(page.getByText('Tvoje data jsme nezměnili.')).toBeVisible()
+  await expect(page.getByText('Aktuální stav domácnosti se nepodařilo načíst.')).toBeVisible()
   await expect(page.getByText('Založ první domácnost')).toHaveCount(0)
   await expect(page.getByText('Načtení selhalo')).toBeVisible()
 
@@ -95,4 +95,57 @@ test('recoverable failures never masquerade as empty household data', async ({ p
   await page.getByRole('button', { name: 'Odhlásit se' }).click()
   await expect(page).toHaveURL(/\/login$/)
   await page.unroute('**/auth/v1/logout*')
+})
+
+test('successful stock correction stays truthful when the following refresh fails', async ({ page }) => {
+  const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  const email = `refresh-truth-${suffix}@example.com`
+  const password = 'FridgeCheck-e2e-123!'
+
+  await page.goto('/register')
+  await page.getByLabel('E-mail').fill(email)
+  await page.getByLabel('Heslo', { exact: true }).fill(password)
+  await page.getByLabel('Heslo znovu').fill(password)
+  await page.getByRole('button', { name: 'Vytvořit účet' }).click()
+  await expect(page).toHaveURL(/\/dashboard$/)
+
+  await page.getByLabel('Název domácnosti').fill('Pravdivá domácnost')
+  await page.getByRole('button', { name: 'Vytvořit domácnost' }).click()
+  await expect(page).toHaveURL(/\/inventory\/new$/)
+
+  await page.getByLabel('Název').fill('Vejce')
+  await page.getByLabel('Kolik toho přidáváš?').fill('5')
+  await page.getByRole('button', { name: 'Přidat do zásob' }).click()
+  await expect(page).toHaveURL(/\/inventory$/)
+
+  const productCard = page.getByRole('article').filter({ hasText: 'Vejce' })
+  await expect(productCard).toContainText('Doma 5 ks')
+  await productCard.getByRole('button', { name: 'Srovnat stav Vejce' }).click()
+
+  const correctionDialog = page.getByRole('dialog', { name: 'Srovnat skutečný stav' })
+  await correctionDialog.getByLabel('Skutečné množství').fill('6')
+
+  let failProducts = true
+  await page.route('**/rest/v1/products*', async (route) => {
+    if (!failProducts) {
+      await route.continue()
+      return
+    }
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'refresh failed after successful correction' }),
+    })
+  })
+
+  await correctionDialog.getByRole('button', { name: 'Srovnat', exact: true }).click()
+  await expect(correctionDialog).not.toBeVisible()
+  await expect(page.getByText('Zásoby se nepodařilo načíst.')).toBeVisible()
+  await expect(page.getByText('Nic se nezměnilo.')).toHaveCount(0)
+  await expect(page.getByText('Aktuální stav zásob se nepodařilo načíst.')).toBeVisible()
+
+  failProducts = false
+  await page.getByRole('button', { name: 'Zkusit znovu' }).click()
+  await expect(page.getByRole('article').filter({ hasText: 'Vejce' })).toContainText('Doma 6 ks')
+  await page.unroute('**/rest/v1/products*')
 })

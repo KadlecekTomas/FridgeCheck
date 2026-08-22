@@ -125,7 +125,7 @@ export default function DashboardPage() {
       {dashboard.error ? (
         <StateCard
           title="Přehled se nepodařilo načíst"
-          description="Nic se nezměnilo. Zkus načtení znovu."
+          description="Aktuální stav se nepodařilo načíst. Zkus načtení znovu."
           action={<button className="button-secondary" onClick={() => void dashboard.refresh()}>Zkusit znovu</button>}
         />
       ) : dashboard.loading ? (
