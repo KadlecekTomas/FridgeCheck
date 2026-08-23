@@ -55,6 +55,28 @@ npm audit --audit-level=high
 
 The unit suite uses Node.js 24's built-in test runner for pure expiry, FEFO, inventory, history, storage, replenishment and external-product mapping rules.
 
+## Vercel deployment contract
+
+When this application is imported into Vercel, the project **Root Directory must be `web`**. Root Directory is a Vercel project setting and is intentionally not pretended to be controlled by repository JSON.
+
+[`vercel.json`](./vercel.json) is the repository-owned part of the deployment policy. It disables automatic Vercel deployments for AI/worktree-style branches that should be validated by repository CI instead of consuming hosted build quota:
+
+- `agent/*`
+- `codex/*`
+- `claude/*`
+- `claude-*`
+
+Do not recreate that rule only as an undocumented dashboard setting. Keep the versioned file authoritative for branch deployment suppression.
+
+The canonical Vercel project must still be configured with public browser-safe environment variables:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+Never expose service-role, database, SMTP or other privileged credentials as `NEXT_PUBLIC_*` variables.
+
+A green repository build is not proof of a live Vercel release. Before private-pilot sign-off, verify the canonical Vercel project, deployed Git tree, domain/HTTPS and hosted Auth flow through [`../docs/RELEASE_CHECKLIST.md`](../docs/RELEASE_CHECKLIST.md).
+
 ## Browser E2E
 
 CI runs the complete [`e2e/`](./e2e) Playwright suite at a mobile viewport against a disposable local Supabase stack rebuilt solely from repository migrations. The browser runs against a production Next.js build, not `next dev`.
