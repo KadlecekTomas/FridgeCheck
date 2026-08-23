@@ -60,6 +60,12 @@ Defines household privacy, authorization, Supabase RLS, credentials, external in
 
 Read for auth, database, API, upload, analytics and privacy work.
 
+### `SECURITY_AUTOMATION.md`
+
+Records the repository-owned GitHub security layers: Dependency Review, npm audit, Gitleaks, CodeQL and Dependabot, including what each layer proves and what still depends on repository/account configuration.
+
+Read before changing dependency-security, code-scanning or secret-scanning automation.
+
 ### `DEFINITION_OF_DONE.md`
 
 Defines the final standard a change must satisfy before it can be called complete/merge-ready.

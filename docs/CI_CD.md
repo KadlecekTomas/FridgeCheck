@@ -95,11 +95,27 @@ It:
 
 A secret finding must be investigated. A real leaked secret must be rotated; deleting it in a later commit is not sufficient. False-positive allowlisting, if ever necessary, must be narrow and documented rather than global.
 
+### GitHub-managed CodeQL
+
+GitHub CodeQL Default Setup is active at repository level. This is an account/repository-managed security control rather than a repository workflow in `.github/workflows`.
+
+The active Default Setup was directly verified on 23 Aug 2026: an attempted advanced CodeQL workflow successfully initialized, extracted source and ran queries, but GitHub rejected the SARIF because advanced configuration cannot be processed while Default Setup is enabled. The advanced workflow was removed instead of disabling the existing security control.
+
+Do not infer an exact query suite, language selection or required-status policy from this repository file. Those are GitHub repository settings and must be verified separately before being described as enforced merge gates. See [`SECURITY_AUTOMATION.md`](./SECURITY_AUTOMATION.md).
+
+### Dependabot maintenance
+
+`.github/dependabot.yml` configures weekly version-update checks for npm under `/web`, npm under `/mobile`, and GitHub Actions. Routine minor/patch updates are grouped per ecosystem; major upgrades remain separate for deliberate compatibility review.
+
+Security-update grouping is configured too, but the file itself is **not** proof that the separate repository-level Dependabot security-updates setting is enabled. Dependabot PRs remain subject to the same relevant CI and review standards as other dependency changes.
+
 ### Remaining target gaps
 
 Do not overstate the current implementation. The following items are still not proven as permanent repository/release guarantees:
 
 - branch-protection settings requiring the checks above; previous automation access was insufficient to prove or configure repository branch protection,
+- repository-level Dependabot security-update enablement if it cannot be read from the available management interface,
+- the exact CodeQL Default Setup language/query configuration and whether its result is a required merge check,
 - hosted production deployment + real-domain/device smoke verification,
 - native build/device/E2E and store-release validation for the planned first-class iOS/Android client.
 
@@ -237,7 +253,9 @@ Repository migrations are the schema source of truth. Dashboard-only DDL drift i
 
 ## Security checks
 
-The current web and mobile pipelines block HIGH-or-higher npm advisories, Dependency Review blocks newly introduced HIGH/CRITICAL dependency vulnerabilities in pull requests, and Gitleaks scans repository history for secrets.
+The current web and mobile pipelines block HIGH-or-higher npm advisories, Dependency Review blocks newly introduced HIGH/CRITICAL dependency vulnerabilities in pull requests, Gitleaks scans repository history for secrets, and GitHub CodeQL Default Setup is active at repository level.
+
+Dependabot version maintenance is repository-configured for web, mobile and GitHub Actions. Dependabot security-update automation remains a separate repository setting and must not be claimed active until that setting is verified.
 
 Database authorization is additionally protected by SQL RLS regression tests and a hostile public-client browser-suite test that proves a second authenticated user cannot read or mutate another household.
 
@@ -250,6 +268,8 @@ Do not blindly suppress high-confidence findings. If secret scanning reports a c
 3. remove it from the active tree,
 4. assess whether Git history must be rewritten,
 5. only use a narrow documented allowlist for a proven false positive.
+
+CodeQL findings likewise require triage. Resolve a real vulnerability at the correct layer; suppress only a proven false positive with a narrow, reviewable justification.
 
 Dependency findings must likewise be investigated rather than bypassed. A major framework upgrade must not be merged merely because it removes an advisory; compatibility risk still requires appropriate validation.
 
