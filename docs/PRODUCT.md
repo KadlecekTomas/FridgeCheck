@@ -16,6 +16,19 @@ Within a few seconds of opening the app, the user should understand:
 
 The product is not a passive database. It is an action-oriented household food assistant.
 
+## Product clients
+
+FridgeCheck is one product with multiple first-class clients:
+
+- a mobile-first web/PWA client
+- a native iOS/Android client built with Expo / React Native
+
+The web/PWA remains the immediate delivery path because it is the fastest place to prove and harden the complete household workflow. That sequencing does **not** make native mobile disposable or a separate product. Native mobile is a planned first-class client and must evolve against the same trusted backend, data model and domain semantics.
+
+Do not implement inventory, expiry, FEFO, quantity/package, replenishment or shopping rules independently in each client. Shared behavior must come from common contracts and reusable domain logic wherever practical.
+
+Native work should prioritize capabilities where native delivery materially improves the product, especially camera/barcode capture, push notifications, reliable offline/mobile interaction and justified device/background integrations.
+
 ## Core loop
 
 1. Add or confirm food after shopping.
@@ -126,13 +139,15 @@ This distinction matters for future consumption prediction and waste insights.
 
 When automatically selecting inventory for consumption, prefer FEFO (First Expired, First Out).
 
-## MVP boundaries
+## MVP boundaries and delivery sequence
 
-The current priority is the mobile-first web/PWA product.
+The current delivery priority is the mobile-first web/PWA client so the core loop can be proven quickly in real use.
 
-Do not make native mobile, recipe generation, broad AI assistants, retailer integrations, receipt OCR, price comparison or nutrition tracking prerequisites for the core product.
+Native mobile is a planned first-class client, but native feature parity is not a prerequisite for proving the MVP. Do not delay core-product validation merely to duplicate every web screen in React Native.
 
-Those features may be explored only after the core loop is reliable and demonstrably useful in everyday use.
+Likewise, do not make recipe generation, broad AI assistants, retailer integrations, receipt OCR, price comparison or nutrition tracking prerequisites for the core product.
+
+Native implementation should advance incrementally through valuable vertical slices and reuse the proven product semantics rather than becoming a parallel rewrite.
 
 ## Success criteria
 
@@ -143,6 +158,8 @@ The MVP is successful when a real user can use it continuously without the inven
 - What should I buy for the next few days?
 
 A non-technical household member should not need to understand terms such as batch, database, RLS, Supabase, internal unit representation or external product-provider behavior to complete the core loop.
+
+Longer term, web/PWA and native clients should answer those questions consistently from the same household state without semantic drift between platforms.
 
 ## Product decision rule
 

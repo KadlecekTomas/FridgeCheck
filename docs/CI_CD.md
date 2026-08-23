@@ -27,7 +27,7 @@ The coverage thresholds were not invented before measurement. The first aggregat
 
 ### Mobile CI
 
-The native Expo client remains a secondary prototype, but changes under `mobile/**` must still be validated before merge. On relevant pull requests targeting `main` and pushes to `main`, Mobile CI enforces:
+The native Expo client is still early in implementation but is a planned first-class iOS/Android client. Changes under `mobile/**` must be validated before merge. On relevant pull requests targeting `main` and pushes to `main`, Mobile CI enforces:
 
 - lockfile dependency installation with `npm ci`,
 - a supported Node.js 22 runtime compatible with the current Expo SDK,
@@ -35,7 +35,7 @@ The native Expo client remains a secondary prototype, but changes under `mobile/
 - explicit strict TypeScript type checking,
 - `expo install --check` so dependency updates cannot silently leave Expo/React Native package versions out of alignment.
 
-The mobile workflow intentionally does not claim native release readiness. If native mobile becomes an active product target, native build/device/E2E validation must be added deliberately rather than inferred from this baseline.
+This gate validates the current native foundation; it does not claim App Store / Google Play release readiness. As native gains product-critical flows, native build, device/E2E and release validation must be added deliberately rather than inferred from lint/typecheck or web coverage.
 
 ### Supabase CI
 
@@ -62,6 +62,8 @@ The browser workflow runs the complete Playwright suite rather than a hard-coded
 - tears down services afterward.
 
 Current browser coverage includes auth, password recovery through a real locally captured email/PKCE flow, hostile public-client household isolation, household/storage bootstrap, inventory batches, expiry, FEFO consumption, correction, discard, history, replenishment/shopping, EAN/Open Food Facts integration, camera fallback and PWA metadata.
+
+Browser E2E proves the web/PWA client. It must not be treated as a substitute for native device validation once equivalent native flows become release-bearing.
 
 ### Dependency Review
 
@@ -97,7 +99,7 @@ Do not overstate the current implementation. The following items are still not p
 
 - branch-protection settings requiring the checks above; previous automation access was insufficient to prove or configure repository branch protection,
 - hosted production deployment + real-domain/device smoke verification,
-- native mobile build/device/E2E validation while `mobile/` remains a secondary prototype.
+- native build/device/E2E and store-release validation for the planned first-class iOS/Android client.
 
 Those gaps must be tracked/fixed deliberately rather than represented as already enforced.
 
@@ -110,6 +112,18 @@ CI must run on:
 - relevant workflow/config changes.
 
 Path filtering may be used for efficiency only if it cannot skip checks required by a change. Repository-wide security scanning intentionally does not use web-only path filtering, and dependency review intentionally evaluates pull requests regardless of which package lockfile changed.
+
+## Multi-client quality principle
+
+Shared backend/domain semantics should be validated at the lowest reusable layer possible. Do not create separate web and native implementations of FEFO, quantity/package conversion, expiry or replenishment rules merely to test both clients independently.
+
+Client-specific CI should then validate the things that are genuinely client-specific:
+
+- web build/browser behavior for `web/`
+- Expo/React Native compatibility, native builds and device behavior for `mobile/`
+- shared domain/contracts once extracted into reusable modules
+
+A green client pipeline does not authorize semantic drift from the shared product contract.
 
 ## Web quality pipeline
 
@@ -130,11 +144,30 @@ The enforced/target web quality pipeline includes:
 
 Independent jobs should run in parallel where useful, but merge protection should require all blocking checks relevant to the change.
 
+## Native quality roadmap
+
+The current mobile gate is a foundation, not the final native pipeline.
+
+Before native release readiness is claimed, add validation appropriate to the product surface, including:
+
+1. deterministic dependency install,
+2. lint and strict typecheck,
+3. Expo dependency alignment,
+4. unit/contract tests for native-specific code,
+5. reproducible Android/iOS build validation,
+6. device or simulator E2E for critical native journeys,
+7. barcode/camera permission and fallback coverage,
+8. push/deep-link coverage when those capabilities are introduced,
+9. offline/reconciliation tests if offline state becomes authoritative,
+10. signed release/store pipeline validation.
+
+Do not add these merely as ceremony before there is corresponding native behavior to validate; add them before that behavior becomes release-critical.
+
 ## Node and action versions
 
 Use a supported Node LTS version and keep it compatible with the package/framework being validated.
 
-The current web runtime is Node.js 24 LTS. The secondary Expo SDK 53 mobile prototype is validated on Node.js 22.13.0 rather than its obsolete historical Node.js 18 CI runtime.
+The current web runtime is Node.js 24 LTS. The current Expo SDK 53 native foundation is validated on Node.js 22.13.0 rather than its obsolete historical Node.js 18 CI runtime.
 
 Pin or deliberately version GitHub Actions. Do not leave the repository indefinitely on obsolete major versions.
 
@@ -169,6 +202,8 @@ Coverage is a regression guard for critical business logic, not a license to wri
 
 The project does not require 100% coverage for UI/framework glue code.
 
+As domain code is extracted for use by both clients, preserve or strengthen these semantics-focused gates rather than duplicating weaker versions in each client.
+
 ## E2E in CI
 
 Critical browser tests run against a deterministic test environment.
@@ -184,6 +219,8 @@ External services such as Open Food Facts must not be a live blocking dependency
 
 Auth recovery is intentionally different: the local Supabase mail-capture service is used so the suite follows a real local recovery email without contacting a third-party SMTP provider.
 
+Native E2E should follow the same determinism principle when introduced: controlled backend state, controlled external metadata and diagnostics sufficient to reproduce device failures.
+
 ## Database CI
 
 Schema/migration changes must be validated in an isolated environment.
@@ -194,7 +231,8 @@ Required checks include:
 - generated types are current where generated types are used,
 - integration/regression tests pass against the migrated schema,
 - RLS/access tests pass,
-- destructive or irreversible changes are identified explicitly.
+- destructive or irreversible changes are identified explicitly,
+- compatibility impact on active web and native clients is evaluated.
 
 Repository migrations are the schema source of truth. Dashboard-only DDL drift is not acceptable.
 
@@ -203,6 +241,8 @@ Repository migrations are the schema source of truth. Dashboard-only DDL drift i
 The current web pipeline blocks HIGH-or-higher npm advisories, Dependency Review blocks newly introduced HIGH/CRITICAL dependency vulnerabilities in pull requests, and Gitleaks scans repository history for secrets.
 
 Database authorization is additionally protected by SQL RLS regression tests and a hostile public-client browser-suite test that proves a second authenticated user cannot read or mutate another household.
+
+Native clients remain untrusted and must use the same trusted authorization boundary. A successful native build is not evidence that household isolation is correct.
 
 Do not blindly suppress high-confidence findings. If secret scanning reports a credential:
 
@@ -238,13 +278,15 @@ Production sequence:
 
 `PR -> relevant blocking CI -> merge main -> production build/deploy -> production smoke check`
 
+For native releases, the equivalent principle applies: store artifacts must be built from a revision that passed the required native/security checks, not from an arbitrary local working tree.
+
 The detailed hosted release procedure is in [`RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md).
 
 ## Environments and secrets
 
 Use environment-specific configuration.
 
-Never commit secrets. Never expose server-only credentials through `NEXT_PUBLIC_*` variables.
+Never commit secrets. Never expose server-only credentials through `NEXT_PUBLIC_*` values or native application configuration/bundles.
 
 CI secrets should be granted the minimum permissions needed for the job.
 
@@ -278,7 +320,7 @@ Do not institutionalize “rerun until green”.
 
 ## CI ownership
 
-Any contributor changing build tools, tests, Node versions, Supabase setup or deployment behavior must evaluate whether CI requires a corresponding update.
+Any contributor changing build tools, tests, Node versions, Supabase setup, native SDK dependencies or deployment behavior must evaluate whether CI requires a corresponding update.
 
 Workflow changes must be reviewed as production code.
 
@@ -297,5 +339,7 @@ Example:
 - E2E: passed,
 - dependency/security gates: passed,
 - secret scan: passed.
+
+For native changes, distinguish current static/SDK validation from actual native build/device validation. Never imply native release readiness when those checks do not exist or were not run.
 
 If a check does not exist yet, was not relevant, or could not run, say so explicitly. Never imply a target gate is already enforced when it is not.
