@@ -78,7 +78,7 @@ export function PurchasePlanningSection({
             </h2>
           </div>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-text-muted">
-            Počítáme se zásobami, expirací a běžnou spotřebou. Cílem je, aby ti po zvoleném období zůstala tvoje cílová rezerva.
+            S nastavenou denní spotřebou počítáme se zásobami, expirací a zvoleným horizontem. Bez ní zůstává původní hlídání minima.
           </p>
         </div>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Plánovací horizont">
@@ -137,11 +137,9 @@ export function PurchasePlanningSection({
 
       <div className="space-y-3">
         <div>
-          <h3 className="text-lg font-bold tracking-[-0.01em] text-text">
-            Co koupit na {horizonLabel(horizonDays)}
-          </h3>
+          <h3 className="text-lg font-bold tracking-[-0.01em] text-text">Co koupit</h3>
           <p className="mt-1 text-sm text-text-muted">
-            Doporučení je odvoditelné z čísel níže; pokud je vstupní zásoba odhad, zachováme i v plánu symbol ≈.
+            U nastavené spotřeby plánujeme na {horizonLabel(horizonDays)}. Ostatní položky zůstávají na původním hlídání minima. Pokud je zásoba odhad, zachováme symbol ≈.
           </p>
         </div>
 
@@ -158,6 +156,7 @@ export function PurchasePlanningSection({
               const purchaseQuantity = product.package_quantity && product.package_unit === item.unit
                 ? roundUpToPackage(item.recommendedQuantity, product.package_quantity) ?? item.recommendedQuantity
                 : item.recommendedQuantity
+              const usesHorizonPlanning = item.expectedDailyConsumption > 0
 
               return (
                 <article key={item.productId} className="rounded-2xl border border-border bg-surface p-4">
@@ -178,21 +177,32 @@ export function PurchasePlanningSection({
                           product.package_unit
                         )}
                       </p>
-                      <p className="mt-1 text-xs leading-5 text-text-muted">
-                        Výhled: za {horizonLabel(horizonDays)} bez nákupu {formatStockQuantity(
-                          item.projectedQuantity,
-                          item.unit,
-                          product.package_quantity,
-                          product.package_unit,
-                          item.projectedQuantityIsEstimate
-                        )} · spotřeba {formatStockQuantity(
-                          item.expectedDailyConsumption,
-                          item.unit,
-                          product.package_quantity,
-                          product.package_unit
-                        )} / den
-                      </p>
-                      {item.expiredBeforeUseQuantity > 0 ? (
+                      {usesHorizonPlanning ? (
+                        <p className="mt-1 text-xs leading-5 text-text-muted">
+                          Výhled: za {horizonLabel(horizonDays)} bez nákupu {formatStockQuantity(
+                            item.projectedQuantity,
+                            item.unit,
+                            product.package_quantity,
+                            product.package_unit,
+                            item.projectedQuantityIsEstimate
+                          )} · spotřeba {formatStockQuantity(
+                            item.expectedDailyConsumption,
+                            item.unit,
+                            product.package_quantity,
+                            product.package_unit
+                          )} / den
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs leading-5 text-text-muted">
+                          Bez denní spotřeby používáme původní hlídání minima: upozornit při {formatStockQuantity(
+                            item.minimumQuantity,
+                            item.unit,
+                            product.package_quantity,
+                            product.package_unit
+                          )} nebo méně.
+                        </p>
+                      )}
+                      {usesHorizonPlanning && item.expiredBeforeUseQuantity > 0 ? (
                         <p className="mt-1 text-xs leading-5 text-warning">
                           Do konce plánu přestane být použitelné {formatStockQuantity(
                             item.expiredBeforeUseQuantity,
@@ -202,7 +212,7 @@ export function PurchasePlanningSection({
                           )} se „spotřebujte do“.
                         </p>
                       ) : null}
-                      {item.unmetConsumption > 0 ? (
+                      {usesHorizonPlanning && item.unmetConsumption > 0 ? (
                         <p className="mt-1 text-xs leading-5 text-danger">
                           Bez nákupu by už během období chybělo {formatStockQuantity(
                             item.unmetConsumption,
@@ -257,7 +267,7 @@ export function PurchasePlanningSection({
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-border bg-surface/60 p-5 text-sm leading-6 text-text-muted">
-            Na {horizonLabel(horizonDays)} máš podle současných zásob a nastavené spotřeby pokryto. Pokud nic nenastavíš, zůstává původní hlídání minima.
+            Teď nic nedoporučujeme. U položek se spotřebou je zvolený horizont pokrytý a ostatní nejsou pod minimem.
           </div>
         )}
       </div>
