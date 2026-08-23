@@ -34,12 +34,12 @@ export function roundUpToPackage(totalNeeded: number, packageQuantity: number) {
 }
 
 export function formatQuantity(value: number, unit: string, isEstimate = false) {
-  const prefix = isEstimate ? '~' : ''
+  const prefix = isEstimate ? '≈' : ''
   return `${prefix}${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
 }
 
 export function formatPackageCount(value: number, isEstimate = false) {
-  const prefix = isEstimate ? '~' : ''
+  const prefix = isEstimate ? '≈' : ''
   return `${prefix}${numberFormatter.format(value)} balení`
 }
 
