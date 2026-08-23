@@ -31,11 +31,13 @@ The native Expo client is still early in implementation but is a planned first-c
 
 - lockfile dependency installation with `npm ci`,
 - a supported Node.js 22 runtime compatible with the current Expo SDK,
+- a blocking `npm audit --audit-level=high` dependency gate,
 - ESLint,
 - explicit strict TypeScript type checking,
-- `expo install --check` so dependency updates cannot silently leave Expo/React Native package versions out of alignment.
+- `expo install --check` so dependency updates cannot silently leave Expo/React Native package versions out of alignment,
+- production JavaScript bundle exports for both Android and iOS.
 
-This gate validates the current native foundation; it does not claim App Store / Google Play release readiness. As native gains product-critical flows, native build, device/E2E and release validation must be added deliberately rather than inferred from lint/typecheck or web coverage.
+This gate validates dependency security, static quality, SDK alignment and production bundling for the current native foundation. The bundle exports are not signed native binaries and do not prove device behavior or App Store / Google Play release readiness. Native binary build, device/E2E and release validation must be added deliberately before native becomes release-bearing.
 
 ### Supabase CI
 
@@ -146,20 +148,17 @@ Independent jobs should run in parallel where useful, but merge protection shoul
 
 ## Native quality roadmap
 
-The current mobile gate is a foundation, not the final native pipeline.
+The current mobile gate is a foundation, not the final native pipeline. It already enforces deterministic dependency installation, HIGH-or-higher dependency auditing, lint, strict typecheck, Expo dependency alignment and Android/iOS production JavaScript bundle exports.
 
-Before native release readiness is claimed, add validation appropriate to the product surface, including:
+Before native release readiness is claimed, add the remaining validation appropriate to the product surface, including:
 
-1. deterministic dependency install,
-2. lint and strict typecheck,
-3. Expo dependency alignment,
-4. unit/contract tests for native-specific code,
-5. reproducible Android/iOS build validation,
-6. device or simulator E2E for critical native journeys,
-7. barcode/camera permission and fallback coverage,
-8. push/deep-link coverage when those capabilities are introduced,
-9. offline/reconciliation tests if offline state becomes authoritative,
-10. signed release/store pipeline validation.
+1. unit/contract tests for native-specific code,
+2. reproducible signed Android/iOS native binary build validation,
+3. device or simulator E2E for critical native journeys,
+4. barcode/camera permission and fallback coverage,
+5. push/deep-link coverage when those capabilities are introduced,
+6. offline/reconciliation tests if offline state becomes authoritative,
+7. signed release/store pipeline validation.
 
 Do not add these merely as ceremony before there is corresponding native behavior to validate; add them before that behavior becomes release-critical.
 
@@ -167,7 +166,7 @@ Do not add these merely as ceremony before there is corresponding native behavio
 
 Use a supported Node LTS version and keep it compatible with the package/framework being validated.
 
-The current web runtime is Node.js 24 LTS. The current Expo SDK 53 native foundation is validated on Node.js 22.13.0 rather than its obsolete historical Node.js 18 CI runtime.
+The current web runtime is Node.js 24 LTS. The current Expo SDK 57 / React Native 0.86 native foundation is validated on Node.js 22.13.0. The coordinated SDK migration is protected by Expo dependency-alignment checks, HIGH-or-higher dependency auditing and Android/iOS production bundle exports.
 
 Pin or deliberately version GitHub Actions. Do not leave the repository indefinitely on obsolete major versions.
 
@@ -238,7 +237,7 @@ Repository migrations are the schema source of truth. Dashboard-only DDL drift i
 
 ## Security checks
 
-The current web pipeline blocks HIGH-or-higher npm advisories, Dependency Review blocks newly introduced HIGH/CRITICAL dependency vulnerabilities in pull requests, and Gitleaks scans repository history for secrets.
+The current web and mobile pipelines block HIGH-or-higher npm advisories, Dependency Review blocks newly introduced HIGH/CRITICAL dependency vulnerabilities in pull requests, and Gitleaks scans repository history for secrets.
 
 Database authorization is additionally protected by SQL RLS regression tests and a hostile public-client browser-suite test that proves a second authenticated user cannot read or mutate another household.
 
