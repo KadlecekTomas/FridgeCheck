@@ -8,7 +8,7 @@ Every pull request that can affect production behavior must be validated automat
 
 ## Current implementation state
 
-The repository now enforces four complementary automated pipelines according to the paths changed.
+The repository now enforces six complementary automated pipelines according to the paths changed.
 
 ### Web CI
 
@@ -24,6 +24,18 @@ On relevant pull requests targeting `main` and pushes to `main`, Web CI enforces
 - dependency audit failing on HIGH-or-higher advisories.
 
 The coverage thresholds were not invented before measurement. The first aggregate production-domain baseline was 96.30% lines / 93.71% branches / 97.37% functions. Meaningful uncovered edge cases were then tested and one unreachable branch was removed. The resulting measured baseline is 100% lines / 98.73% branches / 100% functions, which supports the committed blocking thresholds above.
+
+### Mobile CI
+
+The native Expo client remains a secondary prototype, but changes under `mobile/**` must still be validated before merge. On relevant pull requests targeting `main` and pushes to `main`, Mobile CI enforces:
+
+- lockfile dependency installation with `npm ci`,
+- a supported Node.js 22 runtime compatible with the current Expo SDK,
+- ESLint,
+- explicit strict TypeScript type checking,
+- `expo install --check` so dependency updates cannot silently leave Expo/React Native package versions out of alignment.
+
+The mobile workflow intentionally does not claim native release readiness. If native mobile becomes an active product target, native build/device/E2E validation must be added deliberately rather than inferred from this baseline.
 
 ### Supabase CI
 
@@ -51,6 +63,20 @@ The browser workflow runs the complete Playwright suite rather than a hard-coded
 
 Current browser coverage includes auth, password recovery through a real locally captured email/PKCE flow, hostile public-client household isolation, household/storage bootstrap, inventory batches, expiry, FEFO consumption, correction, discard, history, replenishment/shopping, EAN/Open Food Facts integration, camera fallback and PWA metadata.
 
+### Dependency Review
+
+GitHub's Dependency Review workflow runs on every pull request targeting `main` and reviews the dependency diff introduced by the PR.
+
+It:
+
+- uses the official `actions/dependency-review-action`,
+- fails when a PR introduces a HIGH or CRITICAL known vulnerability,
+- evaluates runtime, development and unknown dependency scopes,
+- runs with read-only repository contents permission,
+- avoids write-dependent PR comments.
+
+This complements package-manager audits: Dependency Review reasons about what the PR introduces, while `npm audit` reasons about the installed dependency graph where that audit is part of the package pipeline.
+
 ### Secret Scan
 
 A repository-wide Gitleaks Action v3 workflow runs on pull requests targeting `main`, pushes to `main` and manual dispatch.
@@ -70,7 +96,8 @@ A secret finding must be investigated. A real leaked secret must be rotated; del
 Do not overstate the current implementation. The following items are still not proven as permanent repository/release guarantees:
 
 - branch-protection settings requiring the checks above; previous automation access was insufficient to prove or configure repository branch protection,
-- hosted production deployment + real-domain/device smoke verification.
+- hosted production deployment + real-domain/device smoke verification,
+- native mobile build/device/E2E validation while `mobile/` remains a secondary prototype.
 
 Those gaps must be tracked/fixed deliberately rather than represented as already enforced.
 
@@ -82,7 +109,7 @@ CI must run on:
 - pushes to `main`,
 - relevant workflow/config changes.
 
-Path filtering may be used for efficiency only if it cannot skip checks required by a change. Repository-wide security scanning intentionally does not use web-only path filtering.
+Path filtering may be used for efficiency only if it cannot skip checks required by a change. Repository-wide security scanning intentionally does not use web-only path filtering, and dependency review intentionally evaluates pull requests regardless of which package lockfile changed.
 
 ## Web quality pipeline
 
@@ -105,9 +132,9 @@ Independent jobs should run in parallel where useful, but merge protection shoul
 
 ## Node and action versions
 
-Use a supported Node LTS version and keep it consistent across local tooling and CI.
+Use a supported Node LTS version and keep it compatible with the package/framework being validated.
 
-The current web runtime is Node.js 24 LTS.
+The current web runtime is Node.js 24 LTS. The secondary Expo SDK 53 mobile prototype is validated on Node.js 22.13.0 rather than its obsolete historical Node.js 18 CI runtime.
 
 Pin or deliberately version GitHub Actions. Do not leave the repository indefinitely on obsolete major versions.
 
@@ -173,7 +200,7 @@ Repository migrations are the schema source of truth. Dashboard-only DDL drift i
 
 ## Security checks
 
-The current pipeline blocks HIGH-or-higher npm advisories and runs explicit repository-wide Gitleaks scanning.
+The current web pipeline blocks HIGH-or-higher npm advisories, Dependency Review blocks newly introduced HIGH/CRITICAL dependency vulnerabilities in pull requests, and Gitleaks scans repository history for secrets.
 
 Database authorization is additionally protected by SQL RLS regression tests and a hostile public-client browser-suite test that proves a second authenticated user cannot read or mutate another household.
 
@@ -184,6 +211,8 @@ Do not blindly suppress high-confidence findings. If secret scanning reports a c
 3. remove it from the active tree,
 4. assess whether Git history must be rewritten,
 5. only use a narrow documented allowlist for a proven false positive.
+
+Dependency findings must likewise be investigated rather than bypassed. A major framework upgrade must not be merged merely because it removes an advisory; compatibility risk still requires appropriate validation.
 
 ## Branch protection target
 
@@ -266,7 +295,7 @@ Example:
 - database/RLS: passed when relevant,
 - build: passed,
 - E2E: passed,
-- dependency audit: passed,
+- dependency/security gates: passed,
 - secret scan: passed.
 
 If a check does not exist yet, was not relevant, or could not run, say so explicitly. Never imply a target gate is already enforced when it is not.
