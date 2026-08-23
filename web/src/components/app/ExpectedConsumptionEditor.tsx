@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
 import {
@@ -37,10 +37,6 @@ export function ExpectedConsumptionEditor({
   const [value, setValue] = useState(String(displayValue))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    setValue(String(displayValue))
-  }, [displayValue])
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
