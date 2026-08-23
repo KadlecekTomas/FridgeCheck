@@ -1,0 +1,69 @@
+name: Mobile Expo 57 migration (one-shot)
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/mobile-expo57-migrate-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout migration branch
+        uses: actions/checkout@v7
+        with:
+          ref: security/mobile-audit-gate
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install current graph
+        working-directory: mobile
+        run: npm ci --ignore-scripts
+
+      - name: Move Expo framework to SDK 57
+        working-directory: mobile
+        run: npm install expo@~57.0.15 --ignore-scripts
+
+      - name: Align all Expo and React Native direct dependencies
+        working-directory: mobile
+        run: npx --no-install expo install --fix --npm
+
+      - name: Validate migrated dependency graph
+        working-directory: mobile
+        run: |
+          npm ci --ignore-scripts
+          npm run lint
+          npm run typecheck
+          npx --no-install expo install --check
+          npm audit --audit-level=high
+
+      - name: Prove production bundle for Android
+        working-directory: mobile
+        run: npx --no-install expo export --platform android --output-dir .expo-ci-android
+
+      - name: Prove production bundle for iOS
+        working-directory: mobile
+        run: npx --no-install expo export --platform ios --output-dir .expo-ci-ios
+
+      - name: Commit coordinated framework migration
+        if: github.actor != 'github-actions[bot]'
+        run: |
+          rm -rf mobile/.expo-ci-android mobile/.expo-ci-ios
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add mobile/package.json mobile/package-lock.json
+          git diff --cached --exit-code && exit 0
+          git commit -m 'security(mobile): migrate to Expo SDK 57'
+          git push origin HEAD:security/mobile-audit-gate
