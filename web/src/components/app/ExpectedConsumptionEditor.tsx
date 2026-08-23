@@ -71,7 +71,7 @@ export function ExpectedConsumptionEditor({
     setError(null)
     const { error: updateError } = await supabaseV2Browser()
       .from('stock_targets')
-      .update({ expected_daily_consumption: storedValue } as never)
+      .update({ expected_daily_consumption: storedValue })
       .eq('id', targetId)
 
     if (updateError) {
@@ -97,7 +97,7 @@ export function ExpectedConsumptionEditor({
         <label className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-text">{productName}</span>
           <span className="mt-0.5 block text-xs leading-5 text-text-muted">
-            Kolik běžně spotřebujete za den
+            Kolik běžně spotřebuješ za den
           </span>
           <div className="relative mt-2">
             <input
