@@ -12,14 +12,16 @@ permissions:
 
 jobs:
   migrate:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout migration branch
         uses: actions/checkout@v7
         with:
           ref: security/mobile-audit-gate
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -28,17 +30,39 @@ jobs:
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
-      - name: Install current graph
-        working-directory: mobile
-        run: npm ci --ignore-scripts
+      - name: Reset mobile dependency files to main baseline
+        run: |
+          git fetch origin main --depth=1
+          git checkout origin/main -- mobile/package.json mobile/package-lock.json
 
-      - name: Move Expo framework to SDK 57
+      - name: Set coordinated Expo 57 dependency versions
         working-directory: mobile
-        run: npm install expo@~57.0.15 --ignore-scripts
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
-      - name: Align all Expo and React Native direct dependencies
+          Object.assign(pkg.dependencies, {
+            expo: '~57.0.15',
+            'expo-constants': '~57.0.13',
+            'expo-status-bar': '~57.0.1',
+            react: '19.2.3',
+            'react-native': '0.86.2',
+          });
+
+          Object.assign(pkg.devDependencies, {
+            '@types/react': '~19.2.4',
+            typescript: '~6.0.3',
+          });
+
+          fs.writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+
+      - name: Re-resolve dependency graph from clean lockfile state
         working-directory: mobile
-        run: npx --no-install expo install --fix --npm
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --ignore-scripts
 
       - name: Validate migrated dependency graph
         working-directory: mobile
@@ -58,7 +82,6 @@ jobs:
         run: npx --no-install expo export --platform ios --output-dir .expo-ci-ios
 
       - name: Commit coordinated framework migration
-        if: github.actor != 'github-actions[bot]'
         run: |
           rm -rf mobile/.expo-ci-android mobile/.expo-ci-ios
           git config user.name 'github-actions[bot]'
@@ -66,4 +89,5 @@ jobs:
           git add mobile/package.json mobile/package-lock.json
           git diff --cached --exit-code && exit 0
           git commit -m 'security(mobile): migrate to Expo SDK 57'
+          git pull --rebase origin security/mobile-audit-gate
           git push origin HEAD:security/mobile-audit-gate
