@@ -1,0 +1,48 @@
+name: Mobile dependency alignment (one-shot)
+
+on:
+  push:
+    branches:
+      - fix/mobile-dependency-ci
+    paths:
+      - '.github/workflows/mobile-align-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: fix/mobile-dependency-ci
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Align Expo SDK 53 patch dependencies
+        working-directory: mobile
+        run: |
+          npm pkg set 'dependencies.expo=~53.0.27' 'dependencies.react-native=0.79.6'
+          npm install --package-lock-only --ignore-scripts
+          npm ci --ignore-scripts
+          npx --no-install expo install --check
+          npm run lint
+          npm run typecheck
+
+      - name: Commit generated lockfile
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add mobile/package.json mobile/package-lock.json
+          git diff --cached --exit-code && exit 0
+          git commit -m 'fix(mobile): align Expo SDK 53 patch dependencies'
+          git push origin HEAD:fix/mobile-dependency-ci
