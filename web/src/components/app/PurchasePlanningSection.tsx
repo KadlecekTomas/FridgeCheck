@@ -124,7 +124,7 @@ export function PurchasePlanningSection({
 
               return (
                 <ExpectedConsumptionEditor
-                  key={target.id}
+                  key={`${target.id}:${expectedDailyConsumption}`}
                   targetId={target.id}
                   productName={product.name}
                   expectedDailyConsumption={expectedDailyConsumption}
