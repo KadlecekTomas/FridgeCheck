@@ -138,11 +138,23 @@ begin
   exception when invalid_parameter_value then null;
   end;
 
-  begin
-    perform public.update_inventory_batch_details(batch_a, freezer_a, 'unknown', null, '   ');
-    raise exception 'Blank edit reason was unexpectedly allowed';
-  exception when invalid_parameter_value then null;
-  end;
+  if public.update_inventory_batch_details(batch_a, freezer_a, 'unknown', null, '   ') <> batch_a then
+    raise exception 'Batch edit without a note returned an unexpected batch id';
+  end if;
+
+  if not exists (
+    select 1 from public.inventory_events
+    where inventory_batch_id = batch_a and product_id = product_a and type = 'correction'
+      and quantity_delta is null and unit is null
+      and reason = 'min. trvanlivost 2026-08-25 → bez data'
+      and created_by = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  ) then
+    raise exception 'Optional-note expiry correction did not retain an automatic audit trail';
+  end if;
+
+  select count(*) into event_count
+  from public.inventory_events
+  where inventory_batch_id = batch_a and type in ('move', 'correction');
 
   begin
     perform public.update_inventory_batch_details(batch_a, freezer_a, 'unknown', null, repeat('x', 501));
@@ -195,7 +207,7 @@ begin
 
   if not exists (
     select 1 from public.inventory_batches
-    where id = batch_a and storage_unit_id = freezer_a and expiry_type = 'best_before' and expiry_date = '2026-08-25'
+    where id = batch_a and storage_unit_id = freezer_a and expiry_type = 'unknown' and expiry_date is null
   ) then
     raise exception 'Rejected cross-household edit mutated the batch';
   end if;
