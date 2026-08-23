@@ -17,6 +17,7 @@ export function DiscardBatchAction({
   batchId,
   productName,
   quantity: availableQuantity,
+  quantityIsEstimate = false,
   unit,
   packageQuantity = null,
   packageUnit = null,
@@ -26,6 +27,7 @@ export function DiscardBatchAction({
   batchId: string
   productName: string
   quantity: number
+  quantityIsEstimate?: boolean
   unit: string
   packageQuantity?: number | null
   packageUnit?: string | null
@@ -98,7 +100,7 @@ export function DiscardBatchAction({
       setError(
         usesPackages && availablePackages !== null
           ? `V této zásobě je jen ${formatPackageCount(availablePackages)}.`
-          : `V této zásobě je jen ${formatQuantity(availableQuantity, unit)}.`
+          : `V této zásobě je jen ${formatQuantity(availableQuantity, unit, quantityIsEstimate)}.`
       )
       return
     }
@@ -128,7 +130,7 @@ export function DiscardBatchAction({
 
     await onDiscarded()
     toast.success(
-      `Vyřazeno ${usesPackages ? formatPackageCount(enteredValue) : formatQuantity(storedValue, unit)} · ${productName}`
+      `Vyřazeno ${usesPackages ? formatPackageCount(enteredValue) : formatQuantity(storedValue, unit, quantityIsEstimate)} · ${productName}`
     )
     setSubmitting(false)
     setOpen(false)
@@ -181,7 +183,7 @@ export function DiscardBatchAction({
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-danger/5 px-2 py-1.5 text-sm sm:px-3 sm:py-2.5">
                 <span className="px-1 text-text-muted">V této zásobě</span>
                 <button type="button" className="inline-flex min-h-11 items-center rounded-lg px-2 font-semibold text-danger underline-offset-4 hover:bg-white/60 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger" onClick={() => setQuantity(String(usesPackages && availablePackages !== null ? availablePackages : availableQuantity))}>
-                  Všechno · {formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit)}
+                  Všechno · {formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit, quantityIsEstimate)}
                 </button>
               </div>
 

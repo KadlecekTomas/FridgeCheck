@@ -33,19 +33,22 @@ export function roundUpToPackage(totalNeeded: number, packageQuantity: number) {
   return roundInventoryQuantity(Math.ceil(totalNeeded / packageQuantity) * packageQuantity)
 }
 
-export function formatQuantity(value: number, unit: string) {
-  return `${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
+export function formatQuantity(value: number, unit: string, isEstimate = false) {
+  const prefix = isEstimate ? '≈' : ''
+  return `${prefix}${numberFormatter.format(value)} ${unit === 'pcs' ? 'ks' : unit}`
 }
 
-export function formatPackageCount(value: number) {
-  return `${numberFormatter.format(value)} balení`
+export function formatPackageCount(value: number, isEstimate = false) {
+  const prefix = isEstimate ? '≈' : ''
+  return `${prefix}${numberFormatter.format(value)} balení`
 }
 
 export function formatStockQuantity(
   totalQuantity: number,
   unit: string,
   packageQuantity?: number | null,
-  packageUnit?: string | null
+  packageUnit?: string | null,
+  isEstimate = false
 ) {
   if (
     packageQuantity !== null &&
@@ -55,9 +58,9 @@ export function formatStockQuantity(
   ) {
     const packageCount = packageCountForTotal(totalQuantity, packageQuantity)
     if (packageCount !== null) {
-      return `${formatPackageCount(packageCount)} · ${formatQuantity(packageQuantity, packageUnit)} / balení`
+      return `${formatPackageCount(packageCount, isEstimate)} · ${formatQuantity(packageQuantity, packageUnit)} / balení`
     }
   }
 
-  return formatQuantity(totalQuantity, unit)
+  return formatQuantity(totalQuantity, unit, isEstimate)
 }

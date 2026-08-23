@@ -7,6 +7,7 @@ export type DashboardBatch = {
   id: string
   productId: string
   quantity: number
+  quantityIsEstimate?: boolean
   unit: string
   expiryDate: string | null
   expiryType: DashboardExpiryType
@@ -26,6 +27,7 @@ export type UrgentBatch = DashboardBatch & {
 
 export type LowStockItem = DashboardStockTarget & {
   currentQuantity: number
+  currentQuantityIsEstimate: boolean
   recommendedQuantity: number
 }
 
@@ -72,18 +74,19 @@ export function computeLowStock(
 ): LowStockItem[] {
   return targets
     .map((target) => {
-      const currentQuantity = batches
-        .filter(
-          (batch) =>
-            batch.productId === target.productId &&
-            batch.unit === target.unit &&
-            isBatchUsableForStock(batch, now)
-        )
-        .reduce((sum, batch) => sum + batch.quantity, 0)
+      const usableBatches = batches.filter(
+        (batch) =>
+          batch.productId === target.productId &&
+          batch.unit === target.unit &&
+          isBatchUsableForStock(batch, now)
+      )
+      const currentQuantity = usableBatches.reduce((sum, batch) => sum + batch.quantity, 0)
+      const currentQuantityIsEstimate = usableBatches.some((batch) => batch.quantityIsEstimate === true)
 
       return {
         ...target,
         currentQuantity,
+        currentQuantityIsEstimate,
         recommendedQuantity: Math.max(0, target.targetQuantity - currentQuantity),
       }
     })

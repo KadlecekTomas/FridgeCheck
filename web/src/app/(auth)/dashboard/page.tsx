@@ -42,6 +42,7 @@ export default function DashboardPage() {
       id: batch.id,
       productId: batch.product_id,
       quantity: batch.quantity,
+      quantityIsEstimate: batch.quantity_is_estimate,
       unit: batch.unit,
       expiryDate: batch.expiry_date,
       expiryType: batch.expiry_type,
@@ -55,19 +56,23 @@ export default function DashboardPage() {
     () => buildUrgentBatches(domainBatches, new Date(), expiringDays).slice(0, 4),
     [domainBatches, expiringDays]
   )
-  const usableQuantityByProduct = useMemo(() => {
+  const usableStockByProduct = useMemo(() => {
     const now = new Date()
     return new Map(
-      dashboard.products.map((product) => [
-        product.id,
-        domainBatches
-          .filter((batch) =>
-            batch.productId === product.id &&
-            batch.unit === product.default_unit &&
-            isBatchUsableForStock(batch, now)
-          )
-          .reduce((sum, batch) => sum + batch.quantity, 0),
-      ])
+      dashboard.products.map((product) => {
+        const usable = domainBatches.filter((batch) =>
+          batch.productId === product.id &&
+          batch.unit === product.default_unit &&
+          isBatchUsableForStock(batch, now)
+        )
+        return [
+          product.id,
+          {
+            quantity: usable.reduce((sum, batch) => sum + batch.quantity, 0),
+            isEstimate: usable.some((batch) => batch.quantityIsEstimate === true),
+          },
+        ] as const
+      })
     )
   }, [dashboard.products, domainBatches])
   const urgentConsumeBatchIds = useMemo(() => {
@@ -78,12 +83,12 @@ export default function DashboardPage() {
     for (const batch of urgentBatches) {
       if (claimedProducts.has(batch.productId)) continue
       if (!isBatchUsableForStock(batch, now)) continue
-      if ((usableQuantityByProduct.get(batch.productId) ?? 0) <= 0) continue
+      if ((usableStockByProduct.get(batch.productId)?.quantity ?? 0) <= 0) continue
       claimedProducts.add(batch.productId)
       actionableBatches.add(batch.id)
     }
     return actionableBatches
-  }, [urgentBatches, usableQuantityByProduct])
+  }, [urgentBatches, usableStockByProduct])
   const lowStock = useMemo(
     () => computeLowStock(
       dashboard.stockTargets.map((target) => ({
@@ -143,7 +148,7 @@ export default function DashboardPage() {
                     const urgency = formatExpiryUrgency(batch.daysRemaining, batch.expiryType)
                     const isCritical = batch.daysRemaining < 0 && batch.expiryType === 'use_by'
                     const isWarning = batch.daysRemaining <= 1
-                    const availableQuantity = usableQuantityByProduct.get(batch.productId) ?? 0
+                    const usableStock = usableStockByProduct.get(batch.productId) ?? { quantity: 0, isEstimate: false }
 
                     return (
                       <div key={batch.id} className="flex flex-wrap items-center gap-3 p-4">
@@ -156,7 +161,7 @@ export default function DashboardPage() {
                             <span className={`text-sm font-semibold ${isCritical ? 'text-danger' : isWarning ? 'text-warning' : 'text-primary'}`}>{urgency}</span>
                           </div>
                           <p className="mt-1 text-sm text-text-muted">
-                            {formatStockQuantity(batch.quantity, batch.unit, product?.package_quantity, product?.package_unit)}
+                            {formatStockQuantity(batch.quantity, batch.unit, product?.package_quantity, product?.package_unit, batch.quantityIsEstimate === true)}
                             {storage ? ` · ${storage.name}` : ''}
                             {batch.expiryType === 'best_before' ? ' · min. trvanlivost' : ''}
                           </p>
@@ -167,6 +172,7 @@ export default function DashboardPage() {
                             batchId={batch.id}
                             productName={product.name}
                             quantity={batch.quantity}
+                            quantityIsEstimate={batch.quantityIsEstimate === true}
                             unit={batch.unit}
                             packageQuantity={product.package_quantity}
                             packageUnit={product.package_unit}
@@ -178,7 +184,8 @@ export default function DashboardPage() {
                             productId={product.id}
                             productName={product.name}
                             unit={product.default_unit}
-                            availableQuantity={availableQuantity}
+                            availableQuantity={usableStock.quantity}
+                            availableQuantityIsEstimate={usableStock.isEstimate}
                             packageQuantity={product.package_quantity}
                             packageUnit={product.package_unit}
                             onConsumed={dashboard.refresh}
@@ -207,12 +214,13 @@ export default function DashboardPage() {
                           <div className="min-w-0">
                             <p className="font-semibold text-text">{product?.name ?? 'Neznámé jídlo'}</p>
                             <p className="mt-1 text-sm text-text-muted">
-                              Doma {formatStockQuantity(item.currentQuantity, item.unit, product?.package_quantity, product?.package_unit)} · chci{' '}
+                              Doma {formatStockQuantity(item.currentQuantity, item.unit, product?.package_quantity, product?.package_unit, item.currentQuantityIsEstimate)} · chci{' '}
                               {formatStockQuantity(item.targetQuantity, item.unit, product?.package_quantity, product?.package_unit)}
                             </p>
+                            {item.currentQuantityIsEstimate ? <p className="mt-1 text-xs text-text-muted">Doporučení vychází z odhadované domácí zásoby.</p> : null}
                           </div>
                           <span className="shrink-0 rounded-full bg-warning/10 px-3 py-1 text-sm font-semibold text-warning">
-                            koupit {formatStockQuantity(purchaseQuantity, item.unit, product?.package_quantity, product?.package_unit)}
+                            koupit {formatStockQuantity(purchaseQuantity, item.unit, product?.package_quantity, product?.package_unit, item.currentQuantityIsEstimate)}
                           </span>
                         </div>
                       </div>

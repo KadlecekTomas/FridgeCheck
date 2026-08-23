@@ -21,12 +21,16 @@ export function inventoryEventLabel(type: InventoryHistoryEventType) {
   return EVENT_LABELS[type]
 }
 
-export function formatInventoryEventQuantity(delta: number | null, unit: string | null) {
-  if (delta === null || unit === null) return null
+export function formatInventoryEventQuantity(
+  delta: number | null,
+  unit: string | null,
+  isEstimate = false
+) {
+  if (delta === null || unit === null || delta === 0) return null
 
   const normalizedUnit = unit === 'pcs' ? 'ks' : unit
-  const sign = delta > 0 ? '+' : delta < 0 ? '−' : ''
-  return `${sign}${numberFormatter.format(Math.abs(delta))} ${normalizedUnit}`
+  const sign = delta > 0 ? '+' : '−'
+  return `${sign}${isEstimate ? '≈' : ''}${numberFormatter.format(Math.abs(delta))} ${normalizedUnit}`
 }
 
 export function inventoryEventDirection(delta: number | null) {

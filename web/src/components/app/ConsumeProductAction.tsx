@@ -18,6 +18,7 @@ export function ConsumeProductAction({
   productName,
   unit,
   availableQuantity,
+  availableQuantityIsEstimate = false,
   packageQuantity = null,
   packageUnit = null,
   onConsumed,
@@ -27,6 +28,7 @@ export function ConsumeProductAction({
   productName: string
   unit: string
   availableQuantity: number
+  availableQuantityIsEstimate?: boolean
   packageQuantity?: number | null
   packageUnit?: string | null
   onConsumed: () => void | Promise<void>
@@ -96,7 +98,7 @@ export function ConsumeProductAction({
       setError(
         usesPackages && availablePackages !== null
           ? `Doma je jen ${formatPackageCount(availablePackages)}.`
-          : `Použitelně je doma jen ${formatQuantity(availableQuantity, unit)}.`
+          : `Použitelně je doma jen ${formatQuantity(availableQuantity, unit, availableQuantityIsEstimate)}.`
       )
       return
     }
@@ -212,9 +214,13 @@ export function ConsumeProductAction({
                   className="inline-flex min-h-11 items-center rounded-lg px-2 font-semibold text-primary underline-offset-4 hover:bg-white/60 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   onClick={() => setQuantity(String(usesPackages && availablePackages !== null ? availablePackages : availableQuantity))}
                 >
-                  Všechno · {formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit)}
+                  Všechno · {formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit, availableQuantityIsEstimate)}
                 </button>
               </div>
+
+              {availableQuantityIsEstimate && !usesPackages ? (
+                <p className="text-xs leading-5 text-text-muted">Dostupný stav je odhad. Zadej ale množství, které jsi skutečně spotřeboval; historie si přesnost jednotlivých FEFO batchů zachová sama.</p>
+              ) : null}
 
               {error ? <p className="rounded-xl bg-danger/8 px-3 py-2.5 text-sm text-danger" role="alert">{error}</p> : null}
 

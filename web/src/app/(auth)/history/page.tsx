@@ -40,8 +40,11 @@ const dateFormatter = new Intl.DateTimeFormat('cs-CZ', {
 function formatEventQuantity(
   delta: number | null,
   unit: string | null,
-  product: Tables<'products'> | undefined
+  product: Tables<'products'> | undefined,
+  isEstimate: boolean
 ) {
+  if (delta === 0) return null
+
   if (
     delta !== null &&
     unit &&
@@ -52,11 +55,11 @@ function formatEventQuantity(
     const packages = packageCountForTotal(Math.abs(delta), product.package_quantity)
     if (packages !== null) {
       const sign = delta > 0 ? '+' : delta < 0 ? '−' : ''
-      return `${sign}${formatPackageCount(packages)}`
+      return `${sign}${formatPackageCount(packages, isEstimate)}`
     }
   }
 
-  return formatInventoryEventQuantity(delta, unit)
+  return formatInventoryEventQuantity(delta, unit, isEstimate)
 }
 
 export default function InventoryHistoryPage() {
@@ -91,7 +94,7 @@ export default function InventoryHistoryPage() {
         <p className="text-sm font-medium text-primary">{activeHousehold.name}</p>
         <h1 className="mt-1 text-[30px] font-bold tracking-[-0.03em] text-text">Historie změn</h1>
         <p className="mt-1 max-w-2xl text-sm leading-6 text-text-muted">
-          Co jsi přidal, spotřeboval, vyhodil nebo ručně opravil.
+          Co jsi přidal, spotřeboval, vyhodil nebo ručně opravil. Symbol ≈ zachovává informaci, že množství bylo evidované odhadem.
         </p>
       </div>
 
@@ -132,7 +135,12 @@ export default function InventoryHistoryPage() {
             {filteredEvents.map((event) => {
               const product = productById.get(event.product_id)
               const direction = inventoryEventDirection(event.quantity_delta)
-              const formattedQuantity = formatEventQuantity(event.quantity_delta, event.unit, product)
+              const formattedQuantity = formatEventQuantity(
+                event.quantity_delta,
+                event.unit,
+                product,
+                event.quantity_is_estimate
+              )
 
               return (
                 <article
