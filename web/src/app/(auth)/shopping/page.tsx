@@ -29,6 +29,7 @@ export default function ShoppingPage() {
       id: batch.id,
       productId: batch.product_id,
       quantity: batch.quantity,
+      quantityIsEstimate: batch.quantity_is_estimate,
       unit: batch.unit,
       expiryDate: batch.expiry_date,
       expiryType: batch.expiry_type,
@@ -173,7 +174,7 @@ export default function ShoppingPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-bold tracking-[-0.02em] text-text">Dochází</h2>
-          <p className="mt-1 text-sm text-text-muted">Doporučíme jen to, co už kleslo pod tvoji hranici.</p>
+          <p className="mt-1 text-sm text-text-muted">Doporučíme jen to, co už kleslo pod tvoji hranici. Pokud je domácí stav odhad, označíme i doporučení jako ≈.</p>
         </div>
         {recommendations.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2">
@@ -191,19 +192,20 @@ export default function ShoppingPage() {
                     <div>
                       <p className="font-semibold text-text">{product.name}</p>
                       <p className="mt-1 text-sm text-text-muted">
-                        Doma {formatStockQuantity(item.currentQuantity, item.unit, product.package_quantity, product.package_unit)} · chci{' '}
+                        Doma {formatStockQuantity(item.currentQuantity, item.unit, product.package_quantity, product.package_unit, item.currentQuantityIsEstimate)} · chci{' '}
                         {formatStockQuantity(item.targetQuantity, item.unit, product.package_quantity, product.package_unit)}
                       </p>
+                      {item.currentQuantityIsEstimate ? <p className="mt-1 text-xs text-text-muted">Doporučení vychází z odhadované domácí zásoby.</p> : null}
                     </div>
                     <button
                       type="button"
                       className="button-secondary shrink-0"
                       disabled={alreadyAdded || addingProductId !== null}
                       onClick={() => void addRecommendation(item.productId, item.recommendedQuantity, item.unit)}
-                      aria-label={alreadyAdded ? `${product.name} už je na seznamu` : addingThis ? `Přidávám ${product.name}` : `Přidat ${product.name}: ${formatStockQuantity(purchaseQuantity, item.unit, product.package_quantity, product.package_unit)}`}
+                      aria-label={alreadyAdded ? `${product.name} už je na seznamu` : addingThis ? `Přidávám ${product.name}` : `Přidat ${product.name}: ${formatStockQuantity(purchaseQuantity, item.unit, product.package_quantity, product.package_unit, item.currentQuantityIsEstimate)}`}
                     >
                       {alreadyAdded ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
-                      {alreadyAdded ? 'Přidáno' : addingThis ? 'Přidávám…' : formatStockQuantity(purchaseQuantity, item.unit, product.package_quantity, product.package_unit)}
+                      {alreadyAdded ? 'Přidáno' : addingThis ? 'Přidávám…' : formatStockQuantity(purchaseQuantity, item.unit, product.package_quantity, product.package_unit, item.currentQuantityIsEstimate)}
                     </button>
                   </div>
                 </div>
