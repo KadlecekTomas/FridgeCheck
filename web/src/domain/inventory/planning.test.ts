@@ -128,10 +128,11 @@ describe('purchase planning', () => {
       now
     )
     assert.equal(low[0]?.recommendedQuantity, 7)
+    assert.equal(low[0]?.projectedQuantity, 3)
   })
 
-  it('surfaces future expiry as a planning shortage even without a consumption rate', () => {
-    const result = computePurchasePlan(
+  it('keeps zero-rate targets backward compatible even when current stock expires inside the horizon', () => {
+    const enoughToday = computePurchasePlan(
       [target({ minimumQuantity: 4, targetQuantity: 10, expectedDailyConsumption: 0 })],
       [
         batch({ id: 'soon', quantity: 5, expiryDate: '2026-08-24', expiryType: 'use_by' }),
@@ -141,10 +142,20 @@ describe('purchase planning', () => {
       now
     )
 
-    assert.equal(result[0]?.currentQuantity, 8)
-    assert.equal(result[0]?.expiredBeforeUseQuantity, 5)
-    assert.equal(result[0]?.projectedQuantity, 3)
-    assert.equal(result[0]?.recommendedQuantity, 7)
+    assert.equal(enoughToday.length, 0)
+
+    const lowToday = computePurchasePlan(
+      [target({ minimumQuantity: 12, targetQuantity: 20, expectedDailyConsumption: 0 })],
+      [batch({ quantity: 6, expiryDate: '2026-08-26', expiryType: 'use_by' })],
+      7,
+      now
+    )
+
+    assert.equal(lowToday[0]?.currentQuantity, 6)
+    assert.equal(lowToday[0]?.plannedConsumption, 0)
+    assert.equal(lowToday[0]?.expiredBeforeUseQuantity, 0)
+    assert.equal(lowToday[0]?.projectedQuantity, 6)
+    assert.equal(lowToday[0]?.recommendedQuantity, 14)
   })
 
   it('propagates estimate uncertainty only when estimated stock affects the plan', () => {
@@ -152,6 +163,19 @@ describe('purchase planning', () => {
       [target({ minimumQuantity: 4, targetQuantity: 10, expectedDailyConsumption: 2 })],
       [batch({ quantity: 8, quantityIsEstimate: true })],
       3,
+      now
+    )
+
+    assert.equal(result[0]?.currentQuantityIsEstimate, true)
+    assert.equal(result[0]?.projectedQuantityIsEstimate, true)
+    assert.equal(result[0]?.recommendationIsEstimate, true)
+  })
+
+  it('preserves estimate provenance in legacy zero-rate recommendations', () => {
+    const result = computePurchasePlan(
+      [target({ minimumQuantity: 4, targetQuantity: 10, expectedDailyConsumption: 0 })],
+      [batch({ quantity: 3, quantityIsEstimate: true })],
+      7,
       now
     )
 
