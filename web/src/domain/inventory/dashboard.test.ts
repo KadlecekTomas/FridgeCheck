@@ -15,6 +15,7 @@ function batch(overrides: Partial<DashboardBatch> = {}): DashboardBatch {
     id: 'batch-a',
     productId: 'product-a',
     quantity: 5,
+    quantityIsEstimate: false,
     unit: 'pcs',
     expiryDate: '2026-08-20',
     expiryType: 'use_by',
@@ -125,7 +126,39 @@ describe('dashboard inventory rules', () => {
         targetQuantity: 10,
         unit: 'pcs',
         currentQuantity: 3,
+        currentQuantityIsEstimate: false,
         recommendedQuantity: 7,
+      },
+    ])
+  })
+
+  it('propagates estimated usable stock into deterministic replenishment', () => {
+    const result = computeLowStock(
+      [{ productId: 'oats', minimumQuantity: 200, targetQuantity: 500, unit: 'g' }],
+      [
+        batch({ id: 'estimate', productId: 'oats', quantity: 150, unit: 'g', quantityIsEstimate: true }),
+        batch({
+          id: 'expired-estimate',
+          productId: 'oats',
+          quantity: 100,
+          unit: 'g',
+          quantityIsEstimate: true,
+          expiryDate: '2026-08-17',
+          expiryType: 'use_by',
+        }),
+      ],
+      now
+    )
+
+    assert.deepEqual(result, [
+      {
+        productId: 'oats',
+        minimumQuantity: 200,
+        targetQuantity: 500,
+        unit: 'g',
+        currentQuantity: 150,
+        currentQuantityIsEstimate: true,
+        recommendedQuantity: 350,
       },
     ])
   })
