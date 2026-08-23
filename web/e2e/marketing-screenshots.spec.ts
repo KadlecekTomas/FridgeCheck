@@ -198,7 +198,7 @@ test('capture polished real-product marketing screens', async ({ page }) => {
 
   await page.getByRole('link', { name: 'Nákup', exact: true }).click()
   await expect(page).toHaveURL(/\/shopping$/)
-  await expect(page.getByRole('heading', { name: 'Nákup' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Nákup', exact: true })).toBeVisible()
   await page.screenshot({ path: join(screenshotDir, '04-shopping.png'), fullPage: true })
 
   await page.getByRole('link', { name: 'Více', exact: true }).click()
