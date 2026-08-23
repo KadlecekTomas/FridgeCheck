@@ -70,7 +70,7 @@ jobs:
 
       - name: Setup Supabase CLI
         if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
           version: 2.111.0
 
