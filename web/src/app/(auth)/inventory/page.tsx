@@ -6,6 +6,8 @@ import { ChevronDown, ChevronUp, PackageOpen, Plus, Search, Target } from 'lucid
 import { ConsumeProductAction } from '@/components/app/ConsumeProductAction'
 import { CorrectBatchAction } from '@/components/app/CorrectBatchAction'
 import { DiscardBatchAction } from '@/components/app/DiscardBatchAction'
+import { EditBatchDetailsAction } from '@/components/app/EditBatchDetailsAction'
+import { EditProductMetadataAction } from '@/components/app/EditProductMetadataAction'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
@@ -148,6 +150,7 @@ export default function InventoryPage() {
                       packageUnit={product.package_unit}
                       onConsumed={dashboard.refresh}
                     />
+                    <EditProductMetadataAction product={product} onUpdated={dashboard.refresh} />
                     <button
                       type="button"
                       className="button-secondary shrink-0"
@@ -204,6 +207,12 @@ export default function InventoryPage() {
                                 </div>
                               </div>
                               <div className="flex flex-wrap items-center justify-end gap-1">
+                                <EditBatchDetailsAction
+                                  batch={batch}
+                                  productName={product.name}
+                                  storageUnits={dashboard.storageUnits}
+                                  onUpdated={dashboard.refresh}
+                                />
                                 <CorrectBatchAction
                                   compact
                                   batchId={batch.id}
