@@ -85,6 +85,22 @@ describe('purchase planning', () => {
     assert.equal(result[0]?.recommendedQuantity, 4)
   })
 
+  it('breaks equal FEFO dates deterministically by batch id', () => {
+    const result = computePurchasePlan(
+      [target({ minimumQuantity: 0, targetQuantity: 10, expectedDailyConsumption: 1 })],
+      [
+        batch({ id: 'batch-z', quantity: 1, quantityIsEstimate: true, expiryDate: '2026-08-30', expiryType: 'use_by' }),
+        batch({ id: 'batch-a', quantity: 1, quantityIsEstimate: false, expiryDate: '2026-08-30', expiryType: 'use_by' }),
+      ],
+      1,
+      now
+    )
+
+    assert.equal(result[0]?.coveredConsumption, 1)
+    assert.equal(result[0]?.projectedQuantity, 1)
+    assert.equal(result[0]?.projectedQuantityIsEstimate, true)
+  })
+
   it('keeps best-before stock available after its date', () => {
     const result = computePurchasePlan(
       [target({ minimumQuantity: 2, targetQuantity: 4, expectedDailyConsumption: 2 })],
@@ -161,11 +177,44 @@ describe('purchase planning', () => {
     assert.equal(result[0]?.recommendedQuantity, 7)
   })
 
+  it('sorts stronger shortages before weaker shortages', () => {
+    const result = computePurchasePlan(
+      [
+        target({ productId: 'critical', minimumQuantity: 1, targetQuantity: 10, expectedDailyConsumption: 0 }),
+        target({ productId: 'partial', minimumQuantity: 10, targetQuantity: 20, expectedDailyConsumption: 0 }),
+      ],
+      [batch({ id: 'partial-stock', productId: 'partial', quantity: 10 })],
+      7,
+      now
+    )
+
+    assert.deepEqual(result.map((item) => item.productId), ['critical', 'partial'])
+  })
+
+  it('sorts equal shortage ratios deterministically by product id', () => {
+    const result = computePurchasePlan(
+      [
+        target({ productId: 'z-product', minimumQuantity: 1, targetQuantity: 10, expectedDailyConsumption: 0 }),
+        target({ productId: 'a-product', minimumQuantity: 1, targetQuantity: 10, expectedDailyConsumption: 0 }),
+      ],
+      [],
+      7,
+      now
+    )
+
+    assert.deepEqual(result.map((item) => item.productId), ['a-product', 'z-product'])
+  })
+
   it('rejects invalid horizons and invalid target quantities', () => {
     assert.throws(() => computePurchasePlan([target()], [], 0, now), /between 1 and 30/)
+    assert.throws(() => computePurchasePlan([target()], [], 1.5, now), /between 1 and 30/)
     assert.throws(() => computePurchasePlan([target()], [], 31, now), /between 1 and 30/)
     assert.throws(
       () => computePurchasePlan([target({ expectedDailyConsumption: -1 })], [], 7, now),
+      /finite non-negative/
+    )
+    assert.throws(
+      () => computePurchasePlan([target({ expectedDailyConsumption: Number.POSITIVE_INFINITY })], [], 7, now),
       /finite non-negative/
     )
     assert.throws(
