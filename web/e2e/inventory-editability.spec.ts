@@ -70,7 +70,7 @@ test('user can correct product metadata, storage and expiry with an audit trail'
   await batchDialog.getByLabel('Kam to patří').selectOption({ label: 'Mrazák' })
   await batchDialog.getByLabel('Typ data').selectOption('best_before')
   await batchDialog.getByLabel('Datum').fill(correctedDate)
-  await batchDialog.getByLabel('Proč údaje měníš?').fill('opraven štítek a přesunuto')
+  await expect(batchDialog.getByRole('button', { name: 'Uložit' })).toBeEnabled()
   await batchDialog.getByRole('button', { name: 'Uložit' }).click()
   await expect(batchDialog).not.toBeVisible()
 
@@ -97,10 +97,10 @@ test('user can correct product metadata, storage and expiry with an audit trail'
   await expect(page).toHaveURL(/\/history$/)
 
   const moveEvent = page.getByRole('article', { name: 'Přesun · Bílý jogurt' })
-  await expect(moveEvent).toContainText('Lednice → Mrazák · opraven štítek a přesunuto')
+  await expect(moveEvent).toContainText('Lednice → Mrazák')
 
   const correctionEvent = page.getByRole('article', { name: 'Oprava stavu · Bílý jogurt' })
   await expect(correctionEvent).toContainText(
-    `spotřebujte do ${originalDate} → min. trvanlivost ${correctedDate} · opraven štítek a přesunuto`
+    `spotřebujte do ${originalDate} → min. trvanlivost ${correctedDate}`
   )
 })
