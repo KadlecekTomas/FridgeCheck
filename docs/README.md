@@ -54,6 +54,12 @@ Defines the merge-gating CI/CD contract and records which quality gates are curr
 
 Read before changing workflows, scripts, test infrastructure, Node versions or deployment behavior.
 
+### `REQUIRED_CHECKS.md`
+
+Records the stable pull-request check contexts, relevance rules, relevant/irrelevant canary evidence and the target `main` branch-protection policy.
+
+Read before changing PR workflow triggers/job names or configuring GitHub required status checks. The file documents proven check-reporting behavior; it does not by itself mean branch protection is enabled.
+
 ### `SECURITY.md`
 
 Defines household privacy, authorization, Supabase RLS, credentials, external input and security-testing rules.
