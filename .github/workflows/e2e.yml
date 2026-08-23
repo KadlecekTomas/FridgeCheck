@@ -4,10 +4,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - 'web/**'
-      - 'supabase/**'
-      - '.github/workflows/e2e.yml'
   push:
     branches:
       - main
@@ -31,8 +27,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect relevant pull-request changes
+        id: relevance
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/core-e2e-changed-files.txt
+          if grep -Eq '^(web/|supabase/|\.github/workflows/e2e\.yml$)' /tmp/core-e2e-changed-files.txt; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node.js
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         uses: actions/setup-node@v6
         with:
           node-version-file: web/.nvmrc
@@ -40,28 +54,34 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install web dependencies
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         working-directory: web
         run: npm ci
 
       - name: Install pinned Playwright runner
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         working-directory: web
         run: npm install --no-save --package-lock=false @playwright/test@1.61.1
 
       - name: Install Chromium
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         working-directory: web
         run: npx playwright install --with-deps chromium
 
       - name: Setup Supabase CLI
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         uses: supabase/setup-cli@v1
         with:
           version: 2.111.0
 
       - name: Start clean local Supabase
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: |
           supabase start
           supabase db reset
 
       - name: Export local browser credentials
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         shell: bash
         run: |
           supabase status -o env > /tmp/supabase.env
@@ -72,10 +92,12 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
 
       - name: Build production Next.js app
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         working-directory: web
         run: npm run build
 
       - name: Start production Next.js app
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         shell: bash
         run: |
           cd web
@@ -93,11 +115,12 @@ jobs:
           exit 1
 
       - name: Run production browser E2E suite
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         working-directory: web
         run: npx playwright test --reporter=line
 
       - name: Upload UI review previews
-        if: success()
+        if: success() && (github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: fridgecheck-ui-review
@@ -108,7 +131,7 @@ jobs:
           retention-days: 14
 
       - name: Upload real marketing screenshots
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: fridgecheck-marketing-screenshots
@@ -117,7 +140,7 @@ jobs:
           retention-days: 14
 
       - name: Upload E2E failure artifacts
-        if: failure()
+        if: failure() && (github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: fridgecheck-e2e-failure
@@ -127,7 +150,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Stop services
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true')
         shell: bash
         run: |
           if [ -f /tmp/fridgecheck-next.pid ]; then

@@ -4,9 +4,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - 'supabase/**'
-      - '.github/workflows/supabase.yml'
   push:
     branches:
       - main
@@ -29,19 +26,40 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect relevant pull-request changes
+        id: relevance
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/supabase-ci-changed-files.txt
+          if grep -Eq '^(supabase/|\.github/workflows/supabase\.yml$)' /tmp/supabase-ci-changed-files.txt; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Supabase CLI
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         uses: supabase/setup-cli@v1
         with:
           version: 2.111.0
 
       - name: Start local Supabase
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: supabase start
 
       - name: Rebuild database from migrations
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: supabase db reset
 
       - name: Run database regression tests
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: |
           for test_file in supabase/tests/*.sql; do
             echo "Running ${test_file}"
@@ -51,5 +69,5 @@ jobs:
           done
 
       - name: Stop local Supabase
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true')
         run: supabase stop --no-backup
