@@ -25,7 +25,7 @@ jobs:
   quality:
     name: Mobile quality
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: mobile
@@ -44,6 +44,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit dependency graph
+        run: npm audit --audit-level=high
+
       - name: Lint
         run: npm run lint
 
@@ -52,3 +55,9 @@ jobs:
 
       - name: Validate Expo dependency alignment
         run: npx --no-install expo install --check
+
+      - name: Build Android production bundle
+        run: npx --no-install expo export --platform android --output-dir .expo-ci-android
+
+      - name: Build iOS production bundle
+        run: npx --no-install expo export --platform ios --output-dir .expo-ci-ios
