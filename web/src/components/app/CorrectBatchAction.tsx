@@ -5,7 +5,6 @@ import { RefreshCw, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
 import {
-  formatPackageCount,
   formatQuantity,
   formatStockQuantity,
   hasAtMostThreeDecimals,
@@ -17,6 +16,7 @@ export function CorrectBatchAction({
   batchId,
   productName,
   quantity: recordedQuantity,
+  quantityIsEstimate = false,
   unit,
   packageQuantity = null,
   packageUnit = null,
@@ -26,6 +26,7 @@ export function CorrectBatchAction({
   batchId: string
   productName: string
   quantity: number
+  quantityIsEstimate?: boolean
   unit: string
   packageQuantity?: number | null
   packageUnit?: string | null
@@ -34,12 +35,14 @@ export function CorrectBatchAction({
 }) {
   const [open, setOpen] = useState(false)
   const [quantity, setQuantity] = useState('')
+  const [isEstimate, setIsEstimate] = useState(false)
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const titleId = useId()
   const descriptionId = useId()
   const quantityId = useId()
+  const estimateId = useId()
   const reasonId = useId()
   const quantityRef = useRef<HTMLInputElement>(null)
   const usesPackages = Boolean(packageQuantity && packageQuantity > 0 && packageUnit === unit)
@@ -59,6 +62,7 @@ export function CorrectBatchAction({
       if (event.key !== 'Escape' || submitting) return
       setOpen(false)
       setQuantity('')
+      setIsEstimate(false)
       setReason('')
       setError(null)
     }
@@ -70,6 +74,7 @@ export function CorrectBatchAction({
     if (submitting) return
     setOpen(false)
     setQuantity('')
+    setIsEstimate(false)
     setReason('')
     setError(null)
   }
@@ -96,8 +101,10 @@ export function CorrectBatchAction({
       setError('Množství se nepodařilo spočítat.')
       return
     }
-    if (storedValue === recordedQuantity) {
-      setError('Zadej skutečný stav odlišný od hodnoty v aplikaci.')
+
+    const nextIsEstimate = usesPackages || storedValue === 0 ? false : isEstimate
+    if (storedValue === recordedQuantity && nextIsEstimate === quantityIsEstimate) {
+      setError('Změň množství nebo upřesni, jestli je hodnota přesná či jen odhad.')
       return
     }
     if (normalizedReason.length > 500) {
@@ -108,15 +115,16 @@ export function CorrectBatchAction({
     setSubmitting(true)
     setError(null)
 
-    const { data: delta, error: correctionError } = await supabaseV2Browser().rpc('correct_inventory_batch', {
+    const { error: correctionError } = await supabaseV2Browser().rpc('correct_inventory_batch', {
       p_batch_id: batchId,
       p_new_quantity: storedValue,
+      p_quantity_is_estimate: nextIsEstimate,
       p_reason: normalizedReason || undefined,
     })
 
     if (correctionError) {
       setError(
-        correctionError.message.includes('Correction must change the quantity')
+        correctionError.message.includes('Correction must change quantity or precision')
           ? 'Zásoba se mezitím změnila. Obnov přehled a zkus to znovu.'
           : 'Stav se nepodařilo uložit. Zásoba zůstala beze změny.'
       )
@@ -125,16 +133,13 @@ export function CorrectBatchAction({
     }
 
     await onCorrected()
-    const signedDelta = typeof delta === 'number' ? delta : storedValue - recordedQuantity
-    const packageDelta = usesPackages && packageQuantity ? packageCountForTotal(Math.abs(signedDelta), packageQuantity) : null
     toast.success(
-      usesPackages && packageDelta !== null
-        ? `Stav srovnán · ${productName} ${signedDelta > 0 ? '+' : '−'}${formatPackageCount(packageDelta)}`
-        : `Stav srovnán · ${productName} ${signedDelta > 0 ? '+' : ''}${formatQuantity(signedDelta, unit)}`
+      `Stav srovnán · ${productName} · ${formatStockQuantity(storedValue, unit, packageQuantity, packageUnit, nextIsEstimate)}`
     )
     setSubmitting(false)
     setOpen(false)
     setQuantity('')
+    setIsEstimate(false)
     setReason('')
   }
 
@@ -147,6 +152,7 @@ export function CorrectBatchAction({
           : 'button-secondary'}
         onClick={() => {
           setQuantity(String(usesPackages && recordedPackages !== null ? recordedPackages : recordedQuantity))
+          setIsEstimate(usesPackages ? false : quantityIsEstimate)
           setReason('')
           setError(null)
           setOpen(true)
@@ -172,7 +178,7 @@ export function CorrectBatchAction({
             </div>
 
             <p id={descriptionId} className="mt-3 text-sm leading-6 text-text-muted">
-              Teď evidujeme {formatStockQuantity(recordedQuantity, unit, packageQuantity, packageUnit)}. Napiš, kolik opravdu máš doma.
+              Teď evidujeme {formatStockQuantity(recordedQuantity, unit, packageQuantity, packageUnit, quantityIsEstimate)}. Napiš, kolik opravdu máš doma; pokud jen odhaduješ, nemusíš nic vážit.
             </p>
 
             <form onSubmit={submit} className="mt-5 space-y-4">
@@ -184,6 +190,22 @@ export function CorrectBatchAction({
                 </div>
                 {usesPackages && packageQuantity && packageUnit ? <p className="mt-1.5 text-xs text-text-muted">1 balení = {formatQuantity(packageQuantity, packageUnit)}</p> : null}
               </div>
+
+              {!usesPackages ? (
+                <label htmlFor={estimateId} className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-canvas px-3 py-3">
+                  <input
+                    id={estimateId}
+                    type="checkbox"
+                    checked={isEstimate}
+                    onChange={(event) => setIsEstimate(event.target.checked)}
+                    className="mt-0.5 h-5 w-5 rounded border-border accent-primary"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-text">Množství je jen odhad</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-text-muted">V přehledech ho označíme jako ≈, aby aplikace nepředstírala přesnost.</span>
+                  </span>
+                </label>
+              ) : null}
 
               <div>
                 <label htmlFor={reasonId} className="field-label">Poznámka <span className="font-normal text-text-muted">volitelně</span></label>
