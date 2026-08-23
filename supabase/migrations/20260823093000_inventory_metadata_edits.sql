@@ -95,10 +95,7 @@ begin
   end if;
 
   normalized_reason := nullif(trim(p_reason), '');
-  if normalized_reason is null then
-    raise exception 'Edit reason is required' using errcode = '22023';
-  end if;
-  if length(normalized_reason) > 500 then
+  if normalized_reason is not null and length(normalized_reason) > 500 then
     raise exception 'Reason must be 500 characters or fewer' using errcode = '22023';
   end if;
 
@@ -180,7 +177,8 @@ begin
       target_product_id,
       p_batch_id,
       'move',
-      format('%s → %s · %s', old_storage_name, new_storage_name, normalized_reason),
+      format('%s → %s', old_storage_name, new_storage_name)
+        || case when normalized_reason is null then '' else ' · ' || normalized_reason end,
       auth.uid()
     );
   end if;
@@ -210,7 +208,8 @@ begin
       target_product_id,
       p_batch_id,
       'correction',
-      format('%s → %s · %s', old_expiry_label, new_expiry_label, normalized_reason),
+      format('%s → %s', old_expiry_label, new_expiry_label)
+        || case when normalized_reason is null then '' else ' · ' || normalized_reason end,
       auth.uid()
     );
   end if;
