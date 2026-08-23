@@ -1,38 +1,54 @@
-# FridgeCheck Mobile Prototype
+# FridgeCheck Mobile
 
-The `mobile/` directory contains an Expo / React Native prototype.
+The `mobile/` directory contains the current Expo / React Native foundation for the native FridgeCheck client.
 
-It is **not the primary product implementation target right now**.
+The implementation is still early, but native mobile is a **planned first-class product client** for iOS and Android. The immediate delivery priority remains the mobile-first web/PWA because it is the fastest place to prove and harden the complete product loop.
 
-Before touching this directory, read the repository root [`AGENTS.md`](../AGENTS.md) and [`docs/PRODUCT.md`](../docs/PRODUCT.md).
+Before touching this directory, read the repository root [`AGENTS.md`](../AGENTS.md), [`docs/PRODUCT.md`](../docs/PRODUCT.md) and [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
 
-## Current product decision
+## Product direction
 
-The immediate priority is to prove and harden the core FridgeCheck workflow in the mobile-first web/PWA application:
+FridgeCheck is one product with multiple clients, not two independent applications.
+
+The web/PWA and native mobile clients must share the same trusted backend/data model and the same critical domain semantics for:
+
+- inventory quantities and package conversions,
+- expiry classification and FEFO behavior,
+- consumption, correction and waste events,
+- usable-stock and replenishment calculations,
+- shopping recommendations,
+- household authorization and isolation.
+
+Do not duplicate those rules independently in React Native screens. As the native client grows, move reusable domain contracts and pure business logic toward shared packages/modules so web and mobile cannot silently drift.
+
+## Native value
+
+Native work should prioritize capabilities where a real mobile client materially improves the product, especially:
+
+- fast camera/barcode capture,
+- push expiry/replenishment notifications,
+- reliable mobile/offline interaction,
+- background/native integrations where justified,
+- later widgets or other high-frequency entry points.
+
+Do not rebuild every web screen merely to claim feature parity. Each native slice should strengthen the core loop:
 
 `inventory -> expiry awareness -> consumption -> replenishment -> shopping`
 
-Do not duplicate web features in native mobile merely because this directory exists.
-
-Native mobile work becomes justified when it delivers a concrete capability that materially improves the proven core experience, or when the web/PWA product has reached sufficient maturity to support a native client without splitting product focus.
-
-## Shared behavior
-
-When native work resumes, critical inventory/expiry/replenishment semantics must not diverge from the web implementation.
-
-Prefer reusable domain contracts and shared API/data semantics over independently reimplementing business rules in React Native screens.
-
 ## Security
 
-The same household isolation and authorization rules apply to native clients.
+The same household isolation and authorization rules apply to every client.
 
-A native app is still an untrusted client. Never ship privileged Supabase/service credentials in the application bundle.
+A native application is still an untrusted client. Never ship Supabase service-role credentials, private API keys or other privileged secrets in the application bundle. Authorization must remain enforced at trusted backend/database boundaries.
 
 ## Testing and CI
 
-Do not expand this client without establishing an appropriate automated test and CI strategy for the behavior being added.
+Changes under `mobile/` are validated before merge. The current PR quality gate:
 
-For dependency or source changes under `mobile/`, the PR quality gate installs the lockfile exactly, runs ESLint, runs strict TypeScript checking, and verifies that the installed Expo package versions are aligned with the current SDK. The workflow also runs after merge on relevant pushes to `main`.
+- installs the committed lockfile with `npm ci`,
+- runs ESLint,
+- runs strict TypeScript checking,
+- verifies Expo/React Native dependency alignment for the current SDK.
 
 Local baseline:
 
@@ -44,4 +60,4 @@ npm run typecheck
 npx --no-install expo install --check
 ```
 
-The mobile workflow intentionally validates the existing prototype rather than treating it as a production-ready native application. Native build/device/E2E coverage remains a future requirement if the native client becomes an active product target.
+This baseline is not yet native release readiness. Before the mobile client is shipped, add deliberate native build/device/E2E coverage and release pipelines rather than inferring production confidence from lint/typecheck alone.
