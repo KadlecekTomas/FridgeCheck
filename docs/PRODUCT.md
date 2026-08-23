@@ -47,9 +47,9 @@ Every major feature should strengthen this loop.
 
 The app records food that physically exists in the household and where it is stored.
 
-Supported precision should match real life. Some items need exact quantities (`6 eggs`, `800 g chicken`); others may be adequately represented by approximate states (`low`, `half`, `full`).
+Supported precision should match real life. Some items need exact quantities (`6 eggs`, `800 g chicken`); others are better recorded as explicit numeric estimates (`~4 eggs`, `~150 g oats`). The estimate marker describes confidence in the number; the canonical numeric value still powers deterministic inventory and shopping arithmetic.
 
-The UI must not force false precision.
+The UI must not force false precision or hide uncertainty behind vague states when a useful numeric estimate is available.
 
 ### 2. Expiry awareness
 
