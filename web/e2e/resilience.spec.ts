@@ -65,7 +65,7 @@ test('recoverable failures never masquerade as empty household data', async ({ p
 
   failProducts = false
   await page.getByRole('button', { name: 'Zkusit znovu' }).click()
-  await expect(page.getByRole('heading', { name: 'Nákup' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Nákup', exact: true })).toBeVisible()
   await expect(page.getByText('Nákupní seznam je prázdný')).toBeVisible()
   await page.unroute('**/rest/v1/products*')
 
