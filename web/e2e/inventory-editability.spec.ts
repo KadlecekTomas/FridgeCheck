@@ -99,7 +99,7 @@ test('user can correct product metadata, storage and expiry with an audit trail'
   const moveEvent = page.getByRole('article', { name: 'Přesun · Bílý jogurt' })
   await expect(moveEvent).toContainText('Lednice → Mrazák · opraven štítek a přesunuto')
 
-  const correctionEvent = page.getByRole('article', { name: 'Korekce · Bílý jogurt' })
+  const correctionEvent = page.getByRole('article', { name: 'Oprava stavu · Bílý jogurt' })
   await expect(correctionEvent).toContainText(
     `spotřebujte do ${originalDate} → min. trvanlivost ${correctedDate} · opraven štítek a přesunuto`
   )
