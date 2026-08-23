@@ -57,10 +57,10 @@ describe('package-aware inventory quantities', () => {
   })
 
   it('marks estimates without changing their numeric semantics', () => {
-    assert.equal(formatQuantity(150, 'g', true), '~150 g')
-    assert.equal(formatQuantity(4, 'pcs', true), '~4 ks')
-    assert.equal(formatPackageCount(2.5, true), '~2,5 balení')
-    assert.equal(formatStockQuantity(150, 'g', null, null, true), '~150 g')
-    assert.equal(formatStockQuantity(250, 'g', 100, 'g', true), '~2,5 balení · 100 g / balení')
+    assert.equal(formatQuantity(150, 'g', true), '≈150 g')
+    assert.equal(formatQuantity(4, 'pcs', true), '≈4 ks')
+    assert.equal(formatPackageCount(2.5, true), '≈2,5 balení')
+    assert.equal(formatStockQuantity(150, 'g', null, null, true), '≈150 g')
+    assert.equal(formatStockQuantity(250, 'g', 100, 'g', true), '≈2,5 balení · 100 g / balení')
   })
 })
