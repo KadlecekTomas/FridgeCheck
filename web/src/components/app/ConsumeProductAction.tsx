@@ -18,6 +18,7 @@ export function ConsumeProductAction({
   productName,
   unit,
   availableQuantity,
+  availableQuantityIsEstimate = false,
   packageQuantity = null,
   packageUnit = null,
   onConsumed,
@@ -27,6 +28,7 @@ export function ConsumeProductAction({
   productName: string
   unit: string
   availableQuantity: number
+  availableQuantityIsEstimate?: boolean
   packageQuantity?: number | null
   packageUnit?: string | null
   onConsumed: () => void | Promise<void>
@@ -96,7 +98,7 @@ export function ConsumeProductAction({
       setError(
         usesPackages && availablePackages !== null
           ? `Doma je jen ${formatPackageCount(availablePackages)}.`
-          : `Použitelně je doma jen ${formatQuantity(availableQuantity, unit)}.`
+          : `Použitelně je doma jen ${formatQuantity(availableQuantity, unit, availableQuantityIsEstimate)}.`
       )
       return
     }
@@ -121,7 +123,7 @@ export function ConsumeProductAction({
 
     await onConsumed()
     toast.success(
-      `Spotřebováno ${usesPackages ? formatPackageCount(enteredValue) : formatQuantity(storedValue, unit)} · ${productName}`
+      `Spotřebováno ${usesPackages ? formatPackageCount(enteredValue) : formatQuantity(storedValue, unit, availableQuantityIsEstimate)} · ${productName}`
     )
     setSubmitting(false)
     setOpen(false)
@@ -212,7 +214,7 @@ export function ConsumeProductAction({
                   className="inline-flex min-h-11 items-center rounded-lg px-2 font-semibold text-primary underline-offset-4 hover:bg-white/60 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   onClick={() => setQuantity(String(usesPackages && availablePackages !== null ? availablePackages : availableQuantity))}
                 >
-                  Všechno · {formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit)}
+                  Všechno · {formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit, availableQuantityIsEstimate)}
                 </button>
               </div>
 
