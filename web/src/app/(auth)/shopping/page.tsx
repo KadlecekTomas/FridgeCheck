@@ -3,11 +3,11 @@
 import { FormEvent, useMemo, useState } from 'react'
 import { Check, Plus, ShoppingBasket } from 'lucide-react'
 import { toast } from 'sonner'
+import { PurchasePlanningSection } from '@/components/app/PurchasePlanningSection'
 import { ShoppingItemActions } from '@/components/app/ShoppingItemActions'
 import { useHousehold } from '@/contexts/HouseholdContext'
 import { useDashboardV2 } from '@/lib/hooks/useDashboardV2'
 import { supabaseV2Browser } from '@/lib/auth/v2-client'
-import { computeLowStock, type DashboardBatch } from '@/domain/inventory/dashboard'
 import { formatStockQuantity, roundUpToPackage } from '@/domain/inventory/quantity'
 
 export default function ShoppingPage() {
@@ -22,33 +22,6 @@ export default function ShoppingPage() {
   const productById = useMemo(
     () => new Map(dashboard.products.map((product) => [product.id, product])),
     [dashboard.products]
-  )
-
-  const domainBatches = useMemo<DashboardBatch[]>(
-    () => dashboard.batches.map((batch) => ({
-      id: batch.id,
-      productId: batch.product_id,
-      quantity: batch.quantity,
-      quantityIsEstimate: batch.quantity_is_estimate,
-      unit: batch.unit,
-      expiryDate: batch.expiry_date,
-      expiryType: batch.expiry_type,
-      status: batch.status,
-    })),
-    [dashboard.batches]
-  )
-
-  const recommendations = useMemo(
-    () => computeLowStock(
-      dashboard.stockTargets.map((target) => ({
-        productId: target.product_id,
-        minimumQuantity: target.minimum_quantity,
-        targetQuantity: target.target_quantity,
-        unit: target.unit,
-      })),
-      domainBatches
-    ),
-    [dashboard.stockTargets, domainBatches]
   )
 
   const openItems = dashboard.shoppingItems.filter((item) => !item.checked)
@@ -166,58 +139,20 @@ export default function ShoppingPage() {
       <div>
         <p className="text-sm font-medium text-primary">{activeHousehold.name}</p>
         <h1 className="mt-1 text-[30px] font-bold tracking-[-0.03em] text-text">Nákup</h1>
-        <p className="mt-1 text-sm text-text-muted">Co dochází doma a co chceš koupit navíc.</p>
+        <p className="mt-1 text-sm text-text-muted">Co koupit na další dny podle zásob, expirace a běžné spotřeby.</p>
       </div>
 
       {error ? <div className="rounded-xl bg-danger/8 px-4 py-3 text-sm text-danger" role="alert">{error}</div> : null}
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-[-0.02em] text-text">Dochází</h2>
-          <p className="mt-1 text-sm text-text-muted">Doporučíme jen to, co už kleslo pod tvoji hranici. Pokud je domácí stav odhad, označíme i doporučení jako ≈.</p>
-        </div>
-        {recommendations.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            {recommendations.map((item) => {
-              const product = productById.get(item.productId)
-              if (!product) return null
-              const alreadyAdded = openItems.some((shopping) => shopping.product_id === item.productId)
-              const addingThis = addingProductId === item.productId
-              const purchaseQuantity = product.package_quantity && product.package_unit === item.unit
-                ? roundUpToPackage(item.recommendedQuantity, product.package_quantity) ?? item.recommendedQuantity
-                : item.recommendedQuantity
-              return (
-                <div key={item.productId} className="rounded-2xl border border-border bg-surface p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="font-semibold text-text">{product.name}</p>
-                      <p className="mt-1 text-sm text-text-muted">
-                        Doma {formatStockQuantity(item.currentQuantity, item.unit, product.package_quantity, product.package_unit, item.currentQuantityIsEstimate)} · chci{' '}
-                        {formatStockQuantity(item.targetQuantity, item.unit, product.package_quantity, product.package_unit)}
-                      </p>
-                      {item.currentQuantityIsEstimate ? <p className="mt-1 text-xs text-text-muted">Doporučení vychází z odhadované domácí zásoby.</p> : null}
-                    </div>
-                    <button
-                      type="button"
-                      className="button-secondary shrink-0"
-                      disabled={alreadyAdded || addingProductId !== null}
-                      onClick={() => void addRecommendation(item.productId, item.recommendedQuantity, item.unit)}
-                      aria-label={alreadyAdded ? `${product.name} už je na seznamu` : addingThis ? `Přidávám ${product.name}` : `Přidat ${product.name}: ${formatStockQuantity(purchaseQuantity, item.unit, product.package_quantity, product.package_unit, item.currentQuantityIsEstimate)}`}
-                    >
-                      {alreadyAdded ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
-                      {alreadyAdded ? 'Přidáno' : addingThis ? 'Přidávám…' : formatStockQuantity(purchaseQuantity, item.unit, product.package_quantity, product.package_unit, item.currentQuantityIsEstimate)}
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-dashed border-border bg-surface/60 p-5 text-sm leading-6 text-text-muted">
-            Nic teď nedochází. Hlídání si nastavíš u jídla v Zásobách.
-          </div>
-        )}
-      </section>
+      <PurchasePlanningSection
+        products={dashboard.products}
+        batches={dashboard.batches}
+        targets={dashboard.stockTargets}
+        openItems={openItems}
+        addingProductId={addingProductId}
+        onAddRecommendation={addRecommendation}
+        onRefresh={dashboard.refresh}
+      />
 
       <section className="space-y-4">
         <div className="flex items-center gap-2">
