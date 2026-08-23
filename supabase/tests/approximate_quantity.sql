@@ -7,7 +7,7 @@ set local role authenticated;
 
 do $$
 declare
-  household_id uuid;
+  target_household_id uuid;
   fridge_id uuid;
   estimated_batch_id uuid;
   estimated_product_id uuid;
@@ -18,14 +18,14 @@ declare
 begin
   perform set_config('request.jwt.claim.sub', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', true);
 
-  household_id := public.create_household('Estimate Household');
+  target_household_id := public.create_household('Estimate Household');
   select id into strict fridge_id
   from public.storage_units
-  where household_id = household_id
+  where household_id = target_household_id
     and name = 'Lednice';
 
   estimated_batch_id := public.create_or_add_product_batch(
-    p_household_id => household_id,
+    p_household_id => target_household_id,
     p_storage_unit_id => fridge_id,
     p_name => 'Rýže v dóze',
     p_quantity => 750,
@@ -149,7 +149,7 @@ begin
   end if;
 
   exact_batch_id := public.create_or_add_product_batch(
-    p_household_id => household_id,
+    p_household_id => target_household_id,
     p_storage_unit_id => fridge_id,
     p_name => 'Přesně zvážená mouka',
     p_quantity => 500,
@@ -163,7 +163,7 @@ begin
   end if;
 
   packaged_batch_id := public.create_or_add_product_batch(
-    p_household_id => household_id,
+    p_household_id => target_household_id,
     p_storage_unit_id => fridge_id,
     p_name => 'Jogurt balení',
     p_quantity => 600,
@@ -191,7 +191,7 @@ begin
 
   begin
     perform public.create_or_add_product_batch(
-      p_household_id => household_id,
+      p_household_id => target_household_id,
       p_storage_unit_id => fridge_id,
       p_name => 'Jiné jméno stejného EAN',
       p_quantity => 150,
