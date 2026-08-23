@@ -264,6 +264,7 @@ export type Database = {
       stock_targets: {
         Row: {
           created_at: string
+          expected_daily_consumption: number
           household_id: string
           id: string
           minimum_quantity: number
@@ -274,6 +275,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expected_daily_consumption?: number
           household_id: string
           id?: string
           minimum_quantity: number
@@ -284,6 +286,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expected_daily_consumption?: number
           household_id?: string
           id?: string
           minimum_quantity?: number
