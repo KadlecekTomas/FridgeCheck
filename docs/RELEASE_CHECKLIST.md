@@ -4,6 +4,29 @@ This checklist is the production bridge between a green repository and a usable 
 
 A release is not complete merely because `main` is green. The deployed revision, hosted Supabase configuration, domain, email delivery and real-device behavior must also be verified.
 
+## Verified readiness snapshot — 2026-08-23
+
+The latest implemented planning slice was merged through PR #56.
+
+- `main`: `afdf8df5084cfd5d7779568aac0b91ca0837dc94`
+- exact tested PR head: `d4d1c5bc6cdcbfafbb8df4e98bac1efbd04b9ebe`
+- both commits point to the identical Git tree: `e383ac08441b05e8bd7ede31f61680a8c2fd714b`
+- exact tested tree passed Web CI, Supabase CI, Core E2E, Dependency Review and Secret Scan
+- hosted Supabase project `fridgecheck-dev` is `ACTIVE_HEALTHY` in `eu-central-1`
+- hosted migration history is aligned with repository migrations through `20260823211000_expected_daily_consumption`
+- hosted schema exposes the expected metadata-edit, approximate-quantity and planning contracts
+- all eight household-data tables still have RLS enabled
+- hosted database is empty of users, households, inventory and shopping fixtures at this checkpoint
+- Supabase Security Advisor reports zero findings after the hosted migrations
+- connected Vercel team is on Hobby and currently exposes no active FridgeCheck/HlídačJídla project through the project API
+- historical Vercel project slugs `fridge-check` and `fridge-check-ctzu` both return 404 through the connected Vercel API
+- GitHub still receives failed historical Vercel statuses whose target is the Vercel `build-rate-limit` upgrade page; treat these as stale/blocked integration state, not as a successful or current deployment
+- `hlidacjidla.eu` is registered/unavailable for purchase, but a working public DNS/HTTPS deployment has not yet been verified
+- `main` branch protection is currently disabled; required status checks are therefore followed by process, not enforced by GitHub configuration
+- Supabase Auth Site URL, redirect allowlist and production SMTP are not yet verified through an available management interface
+
+The remaining blockers are infrastructure/configuration work, not an unresolved repository test failure.
+
 ## Current repository baseline
 
 The current mobile-first web/PWA baseline already has automated coverage for:
@@ -23,7 +46,8 @@ The current mobile-first web/PWA baseline already has automated coverage for:
 - shopping flow,
 - authenticated EAN/Open Food Facts lookup,
 - camera-scanner permission fallback,
-- PWA manifest/icons/install metadata.
+- PWA manifest/icons/install metadata,
+- explainable 3/7/14-day purchase planning with strict backward-compatible zero-rate behavior.
 
 The blocking CI baseline includes:
 
@@ -35,7 +59,9 @@ The blocking CI baseline includes:
 - `npm audit --audit-level=high`,
 - clean local Supabase rebuild from repository migrations,
 - SQL regression/RLS tests,
-- the complete production Playwright suite against disposable local Supabase.
+- the complete production Playwright suite against disposable local Supabase,
+- Dependency Review,
+- full-history secret scanning.
 
 Do not infer from this that a hosted production environment is already configured.
 
@@ -47,17 +73,28 @@ For a private personal pilot, using the existing free project can be an explicit
 
 Before pointing the app at a hosted project:
 
-- [ ] record the intended project ref and region,
-- [ ] confirm the project is healthy,
-- [ ] confirm repository migrations are the authoritative schema source,
-- [ ] apply/verify every repository migration in order,
-- [ ] regenerate/review Supabase TypeScript types if the hosted schema changed,
-- [ ] run the Supabase Security Advisor and resolve any security findings,
-- [ ] verify no test users or disposable fixtures remain in the hosted database,
-- [ ] confirm only public/publishable keys are exposed to the web application,
-- [ ] never expose service-role/secret keys to Vercel browser variables.
+- [x] record the intended private-pilot project ref and region,
+- [x] confirm the project is healthy,
+- [x] confirm repository migrations are the authoritative schema source,
+- [x] apply/verify every repository migration in order,
+- [x] regenerate/review Supabase TypeScript types after the hosted schema change,
+- [x] run the Supabase Security Advisor and resolve any security findings,
+- [x] verify no test users or disposable fixtures remain in the hosted database,
+- [ ] confirm the deployed web application exposes only public/publishable Supabase credentials,
+- [ ] verify no service-role/database secret is present in Vercel browser variables.
 
-For public scale, also clear the known non-blocking performance-advisor work: missing FK indexes and RLS init-plan optimizations should be handled by a dedicated tested migration rather than dashboard-only DDL.
+Hosted private-pilot evidence on 2026-08-23:
+
+- migration history exactly reaches `20260823211000_expected_daily_consumption`,
+- `quantity_is_estimate` exists on inventory batches/events,
+- estimate-aware inventory function overloads are present,
+- metadata-edit functions are present,
+- `stock_targets.expected_daily_consumption` is `NOT NULL`, defaults to `0` and rejects negative values,
+- generated hosted TypeScript types expose the new columns and function overloads,
+- Security Advisor: zero findings,
+- Performance Advisor: only informational `unused_index` notices on the fresh empty development database; do not delete those indexes merely because this environment has not generated realistic usage statistics yet.
+
+For public scale, re-evaluate the performance advisor from real workload evidence and handle any justified database hardening through a dedicated tested migration rather than dashboard-only DDL.
 
 ## 2. Configure hosted Supabase Auth
 
@@ -76,27 +113,33 @@ Password-recovery UI intentionally does not reveal whether an email address is r
 
 ## 3. Create or reconnect the Vercel project
 
-Current observed external state: the connected Vercel team does not expose an active FridgeCheck/HlídačJídla project through the project API. Historical GitHub commit statuses reference `fridge-check` and `fridge-check-ctzu`, but both project slugs currently resolve as missing through the connected Vercel API. Treat those statuses as stale integration state, not proof of a live deployment.
+Current observed external state: the connected Vercel team `kadlecektomas-projects` is on Hobby and does not expose an active FridgeCheck/HlídačJídla project through the project API. Historical GitHub commit statuses reference `fridge-check` and `fridge-check-ctzu`, but both project slugs currently resolve as missing through the connected Vercel API. GitHub's latest failed Vercel status targets the Vercel `upgradeToPro=build-rate-limit` page.
+
+Treat those historical status contexts as stale/blocked integration state, not proof of a live deployment. Reconnect one canonical project rather than keeping duplicate project contexts.
 
 Production setup:
 
-- [ ] import/connect GitHub repository `KadlecekTomas/FridgeCheck`,
+- [ ] create/import one canonical Vercel project from GitHub repository `KadlecekTomas/FridgeCheck`,
+- [ ] remove/disconnect obsolete duplicate FridgeCheck Git integration contexts if they still exist in the Vercel/GitHub UI,
 - [ ] use `web` as the Vercel Root Directory,
 - [ ] detect/use the Next.js framework preset,
-- [ ] deploy only a revision from green `main`,
+- [ ] deploy only the tested tree from green `main`,
 - [ ] keep preview deployment suppression for `agent/*`, `codex/*` and `claude/*` branches unless intentionally changed,
 - [ ] configure `NEXT_PUBLIC_SUPABASE_URL`,
 - [ ] configure `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
 - [ ] do not add service-role/database secrets to public variables,
-- [ ] verify the Vercel production build is the same commit that passed CI.
+- [ ] verify the Vercel production deployment resolves to the same Git tree that passed CI.
 
 The expected public environment variable shape is documented in [`../web/.env.example`](../web/.env.example).
 
 ## 4. Attach the production domain
 
-- [ ] add `hlidacjidla.eu` to the production Vercel project,
+Current external evidence only proves that `hlidacjidla.eu` is not available for purchase. A working DNS/HTTPS origin is not yet verified.
+
+- [ ] add `hlidacjidla.eu` to the canonical Vercel project,
 - [ ] configure the required DNS records at the domain provider,
 - [ ] wait until Vercel reports the domain verified,
+- [ ] verify public DNS resolution from an independent network,
 - [ ] verify HTTPS without certificate warnings,
 - [ ] choose one canonical hostname and redirect any alternate hostname consistently,
 - [ ] re-check the Supabase Auth Site URL and recovery allowlist against the final canonical hostname.
@@ -132,6 +175,8 @@ Run these checks against the actual production origin with a new disposable user
 - [ ] correct a physical quantity with a reason,
 - [ ] history shows purchase/consume/discard/correction events,
 - [ ] set minimum/target stock,
+- [ ] set daily consumption and verify 3/7/14-day purchase planning,
+- [ ] verify a zero-rate target retains legacy minimum-based replenishment,
 - [ ] replenishment amount is correct,
 - [ ] add/complete a shopping item.
 
@@ -154,14 +199,19 @@ Run these checks against the actual production origin with a new disposable user
 
 ## 6. Security release check
 
-- [ ] GitHub Web CI is green on the released SHA,
-- [ ] Supabase CI is green on the released SHA when schema/config paths changed,
-- [ ] complete Core E2E is green on the released SHA,
-- [ ] dependency audit has no HIGH-or-higher findings,
-- [ ] Supabase Security Advisor has no unresolved findings,
-- [ ] public-client hostile household-isolation test is green,
-- [ ] repository contains no `.env`/service-role/SMTP secrets,
-- [ ] hosted browser network requests do not expose privileged credentials.
+Repository evidence for the current `main` tree:
+
+- [x] Web CI is green for the exact Git tree now on `main`,
+- [x] Supabase CI is green for the exact Git tree now on `main`,
+- [x] complete Core E2E is green for the exact Git tree now on `main`,
+- [x] Dependency Review and `npm audit --audit-level=high` report no blocking finding on that tree,
+- [x] Secret Scan is green and repository search found no service-role/SMTP secret marker,
+- [x] Supabase Security Advisor has no unresolved findings after hosted migrations,
+- [x] public-client household-isolation regressions remain part of the green database/security suite,
+- [ ] GitHub `main` branch protection/ruleset requires the blocking status checks,
+- [ ] hosted browser network requests are verified not to expose privileged credentials.
+
+The green PR head and the squash-merged `main` commit have the same Git tree, so the tested code content is identical. GitHub branch protection is nevertheless still a separate configuration requirement and is currently disabled.
 
 ## 7. Rollback readiness
 
@@ -186,4 +236,6 @@ The app can be called **ready for the private daily-use pilot** when:
 4. `hlidacjidla.eu` is HTTPS and canonical,
 5. the real-device production smoke above passes.
 
-A broader public launch should additionally separate production infrastructure from development and clear the tracked database performance hardening before meaningful scale.
+Current verdict on 2026-08-23: **repository + hosted database are ready; private pilot is still blocked by Vercel project/domain setup, hosted Auth/SMTP verification, enforced branch protection and real-device production smoke.**
+
+A broader public launch should additionally separate production infrastructure from development and clear any performance hardening justified by real workload evidence before meaningful scale.
