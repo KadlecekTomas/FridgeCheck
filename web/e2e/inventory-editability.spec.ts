@@ -26,7 +26,7 @@ test('user can correct product metadata, storage and expiry with an audit trail'
   await expect(page).toHaveURL(/\/dashboard$/)
   await page.getByLabel('Název domácnosti').fill('Edit domácnost')
   await page.getByRole('button', { name: 'Vytvořit domácnost' }).click()
-  await expect(page.getByRole('heading', { name: 'Co dnes potřebuje pozornost' })).toBeVisible()
+  await expect(page).toHaveURL(/\/inventory\/new$/)
 
   await page.getByRole('link', { name: 'Více', exact: true }).click()
   await page.getByRole('link', { name: /Úložná místa/ }).click()
@@ -41,9 +41,9 @@ test('user can correct product metadata, storage and expiry with an audit trail'
   await page.getByRole('link', { name: 'Přidat', exact: true }).click()
   await expect(page).toHaveURL(/\/inventory\/new$/)
   await page.getByLabel('Název').fill('Jogurt')
-  await page.getByLabel('Množství').fill('4')
-  await page.getByLabel('Typ data').selectOption('use_by')
-  await page.getByLabel('Datum').fill(originalDate)
+  await page.getByLabel('Kolik toho přidáváš?').fill('4')
+  await page.getByLabel('Datum na obalu').selectOption('use_by')
+  await page.getByLabel('Datum', { exact: true }).fill(originalDate)
   await page.getByRole('button', { name: 'Přidat do zásob' }).click()
 
   await expect(page).toHaveURL(/\/inventory$/)
