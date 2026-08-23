@@ -79,12 +79,8 @@ export function EditBatchDetailsAction({
       setError('Pro zvolený typ expirace je potřeba datum.')
       return
     }
-    if (!normalizedReason) {
-      setError('Napiš stručně, proč údaje opravuješ.')
-      return
-    }
     if (normalizedReason.length > 500) {
-      setError('Důvod může mít nejvýše 500 znaků.')
+      setError('Poznámka může mít nejvýše 500 znaků.')
       return
     }
 
@@ -103,7 +99,7 @@ export function EditBatchDetailsAction({
       p_storage_unit_id: storageId,
       p_expiry_type: expiryType,
       p_expiry_date: normalizedDate || undefined,
-      p_reason: normalizedReason,
+      p_reason: normalizedReason || undefined,
     })
 
     if (updateError) {
@@ -157,7 +153,7 @@ export function EditBatchDetailsAction({
             </div>
 
             <p id={descriptionId} className="mt-3 text-sm leading-6 text-text-muted">
-              Oprav umístění nebo datum, pokud evidence neodpovídá skutečnosti. Změna se zapíše do historie. Množství upravuj přes „Srovnat stav“.
+              Oprav umístění nebo datum, pokud evidence neodpovídá skutečnosti. Změna se do historie zapíše automaticky; poznámku přidej jen tehdy, když později pomůže vysvětlit proč. Množství upravuj přes „Srovnat stav“.
             </p>
 
             <form onSubmit={submit} className="mt-5 space-y-4">
@@ -191,14 +187,14 @@ export function EditBatchDetailsAction({
                 </div>
               ) : null}
               <div>
-                <label htmlFor={reasonId} className="field-label">Proč údaje měníš?</label>
-                <textarea id={reasonId} className="input-field min-h-24 resize-y" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} placeholder="např. špatně opsané datum, přesunuto do mrazáku" required />
+                <label htmlFor={reasonId} className="field-label">Poznámka k opravě <span className="font-normal text-text-muted">(volitelné)</span></label>
+                <textarea id={reasonId} className="input-field min-h-24 resize-y" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} placeholder="např. špatně opsané datum" />
                 <p className="mt-1.5 text-xs text-text-muted">{reason.length}/500</p>
               </div>
               {error ? <p className="rounded-xl bg-danger/8 px-3 py-2.5 text-sm text-danger" role="alert">{error}</p> : null}
               <div className="flex gap-2">
                 <button type="button" onClick={close} disabled={submitting} className="button-secondary flex-1">Zrušit</button>
-                <button type="submit" disabled={submitting || !storageId || !reason.trim() || (expiryType !== 'unknown' && !expiryDate)} className="button-primary flex-1">
+                <button type="submit" disabled={submitting || !storageId || (expiryType !== 'unknown' && !expiryDate)} className="button-primary flex-1">
                   <Save size={17} aria-hidden="true" />
                   {submitting ? 'Ukládám…' : 'Uložit'}
                 </button>
