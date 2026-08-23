@@ -4,6 +4,8 @@ The `mobile/` directory contains the current Expo / React Native foundation for 
 
 The implementation is still early, but native mobile is a **planned first-class product client** for iOS and Android. The immediate delivery priority remains the mobile-first web/PWA because it is the fastest place to prove and harden the complete product loop.
 
+The current native foundation uses **Expo SDK 57**, React Native 0.86 and React 19.2.
+
 Before touching this directory, read the repository root [`AGENTS.md`](../AGENTS.md), [`docs/PRODUCT.md`](../docs/PRODUCT.md) and [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
 
 ## Product direction
@@ -46,18 +48,23 @@ A native application is still an untrusted client. Never ship Supabase service-r
 Changes under `mobile/` are validated before merge. The current PR quality gate:
 
 - installs the committed lockfile with `npm ci`,
+- blocks HIGH-or-higher npm advisories,
 - runs ESLint,
 - runs strict TypeScript checking,
-- verifies Expo/React Native dependency alignment for the current SDK.
+- verifies Expo/React Native dependency alignment for the current SDK,
+- proves that production JavaScript bundles can be exported for both Android and iOS.
 
 Local baseline:
 
 ```bash
 cd mobile
 npm ci
+npm audit --audit-level=high
 npm run lint
 npm run typecheck
 npx --no-install expo install --check
+npx --no-install expo export --platform android --output-dir .expo-ci-android
+npx --no-install expo export --platform ios --output-dir .expo-ci-ios
 ```
 
-This baseline is not yet native release readiness. Before the mobile client is shipped, add deliberate native build/device/E2E coverage and release pipelines rather than inferring production confidence from lint/typecheck alone.
+The export checks prove production bundling, not signed native binaries or device behavior. This baseline is therefore not yet App Store / Google Play release readiness. Before the mobile client is shipped, add deliberate native build/device/E2E coverage and release pipelines rather than inferring production confidence from bundle, lint or typecheck checks alone.
