@@ -8,10 +8,6 @@ import { formatStockQuantity, roundUpToPackage } from '@/domain/inventory/quanti
 import type { DashboardBatch } from '@/domain/inventory/dashboard'
 import type { Tables } from '@/types/supabase-v2'
 
-type PlanningTargetRow = Tables<'stock_targets'> & {
-  expected_daily_consumption?: number | null
-}
-
 const HORIZONS = [3, 7, 14] as const
 
 function horizonLabel(days: number) {
@@ -60,9 +56,7 @@ export function PurchasePlanningSection({
       productId: target.product_id,
       minimumQuantity: target.minimum_quantity,
       targetQuantity: target.target_quantity,
-      expectedDailyConsumption: Number(
-        (target as PlanningTargetRow).expected_daily_consumption ?? 0
-      ),
+      expectedDailyConsumption: target.expected_daily_consumption,
       unit: target.unit,
     })),
     [targets]
@@ -118,9 +112,7 @@ export function PurchasePlanningSection({
             {targets.map((target) => {
               const product = productById.get(target.product_id)
               if (!product) return null
-              const expectedDailyConsumption = Number(
-                (target as PlanningTargetRow).expected_daily_consumption ?? 0
-              )
+              const expectedDailyConsumption = target.expected_daily_consumption
 
               return (
                 <ExpectedConsumptionEditor
