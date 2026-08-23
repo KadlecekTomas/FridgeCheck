@@ -81,6 +81,7 @@ Typical fields:
 - `product_id`
 - `storage_unit_id`
 - `quantity`
+- `quantity_is_estimate`
 - `unit`
 - `expiry_date`
 - `expiry_type` (`use_by`, `best_before`, `unknown`)
@@ -96,6 +97,8 @@ Expiry belongs here, not on `Product`.
 A product can have multiple active batches with different dates and locations.
 
 For packaged goods, batch `quantity` remains the canonical quantity in `Product.default_unit`; package count is derived from product package metadata. A database batch is not the same thing as one retail package and must never be labelled as such in the UI.
+
+`quantity_is_estimate` describes confidence in the numeric quantity, not a different quantity system. `quantity = 150`, `unit = g`, `quantity_is_estimate = true` means `~150 g`: arithmetic still uses 150 g, while user-facing stock and derived replenishment must preserve the estimate marker.
 
 ### StockTarget
 
@@ -136,6 +139,7 @@ Typical fields:
 - `inventory_batch_id`
 - `type`
 - `quantity_delta`
+- `quantity_is_estimate`
 - `unit`
 - `reason`
 - `created_by`
@@ -143,7 +147,7 @@ Typical fields:
 
 The current batch quantity can remain materialized for fast reads, but quantity-changing operations should create enough history to explain how the state was reached.
 
-History is important for future consumption prediction and waste analysis. The UI may render canonical event quantities as package counts when product package metadata exists, but the event itself remains canonical and auditable.
+History is important for future consumption prediction and waste analysis. The UI may render canonical event quantities as package counts when product package metadata exists, but the event itself remains canonical and auditable. Event estimate metadata preserves whether the quantity-changing fact came from stock that was only approximately known.
 
 ### ShoppingListItem
 
@@ -174,6 +178,8 @@ It must exclude at least:
 
 Future logic may discount stock that will expire before the relevant planning horizon, but that behavior must be explicit and tested.
 
+If any usable contributing batch is estimated, the aggregate usable stock is also presented as estimated. An exact target minus estimated usable stock yields an estimated recommendation even though the numeric arithmetic remains deterministic.
+
 ### Replenishment need
 
 A simple baseline is:
@@ -193,7 +199,7 @@ Do not encode this formula independently in multiple UI components.
 
 ## Quantity rules
 
-Use explicit numeric quantity plus unit for precise inventory.
+Use explicit numeric quantity plus unit for inventory arithmetic.
 
 Supported unit families should be centralized, for example:
 
@@ -207,7 +213,9 @@ Product package metadata is an explicit product-specific conversion between a pa
 
 Do not use floating-point arithmetic carelessly for values where rounding can accumulate. Define normalization and rounding rules centrally and match database precision.
 
-Approximate inventory (`low`, `half`, `full`) may be supported as a separate explicit mode; do not pretend approximate states are precise measurements.
+Approximate inventory uses an explicit numeric estimate plus `quantity_is_estimate = true`, for example `~150 g` or `~4 pcs`. The numeric value remains canonical for deterministic arithmetic; the estimate flag must propagate to user-facing stock and derived replenishment so uncertainty is never presented as false precision. Vague states such as `low` / `half` / `full` are not the canonical quantity model.
+
+Package-aware entry stays exact when package count and per-package quantity are known. Do not mark a known `4 × 150 g` purchase as approximate merely because the resulting canonical total is stored in grams.
 
 ## Barcode identity and repeated entry
 
@@ -238,6 +246,7 @@ A correction should:
 - update the current state
 - preserve an audit event
 - optionally capture a reason
+- allow precision-only correction between exact and estimated numeric state
 - never masquerade as consumption if the user is fixing incorrect data
 
 ## Deletion
