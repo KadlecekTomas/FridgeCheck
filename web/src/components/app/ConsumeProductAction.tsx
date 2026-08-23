@@ -123,7 +123,7 @@ export function ConsumeProductAction({
 
     await onConsumed()
     toast.success(
-      `Spotřebováno ${usesPackages ? formatPackageCount(enteredValue) : formatQuantity(storedValue, unit, availableQuantityIsEstimate)} · ${productName}`
+      `Spotřebováno ${usesPackages ? formatPackageCount(enteredValue) : formatQuantity(storedValue, unit)} · ${productName}`
     )
     setSubmitting(false)
     setOpen(false)
@@ -217,6 +217,10 @@ export function ConsumeProductAction({
                   Všechno · {formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit, availableQuantityIsEstimate)}
                 </button>
               </div>
+
+              {availableQuantityIsEstimate && !usesPackages ? (
+                <p className="text-xs leading-5 text-text-muted">Dostupný stav je odhad. Zadej ale množství, které jsi skutečně spotřeboval; historie si přesnost jednotlivých FEFO batchů zachová sama.</p>
+              ) : null}
 
               {error ? <p className="rounded-xl bg-danger/8 px-3 py-2.5 text-sm text-danger" role="alert">{error}</p> : null}
 
