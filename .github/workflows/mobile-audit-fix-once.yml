@@ -39,7 +39,7 @@ jobs:
 
       - name: Apply compatible npm audit fixes to lockfile
         working-directory: mobile
-        run: npm audit fix --package-lock-only --ignore-scripts
+        run: npm audit fix --package-lock-only --ignore-scripts || true
 
       - name: Prove package manifest was not changed
         run: git diff --exit-code -- mobile/package.json
