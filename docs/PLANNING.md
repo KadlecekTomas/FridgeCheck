@@ -27,13 +27,21 @@ The planning horizon is a parameter of the current shopping decision. The first 
 
 Expected daily consumption is a planning assumption, not observed history. It must never create fake `InventoryEvent` rows.
 
-A value of `0` preserves the previous low-stock behavior: the app does not proactively top a product back up merely because current stock is below the target; it recommends when projected usable stock reaches the configured minimum.
+A value of `0` is an explicit backward-compatible mode. It preserves the pre-planning low-stock semantics exactly:
+
+- only currently usable stock is compared with `minimum_quantity` and `target_quantity`,
+- no future consumption is assumed,
+- no future horizon projection is presented for that product,
+- stock expiring later inside the selected horizon does not change the recommendation until the household opts into a consumption rate,
+- the recommendation appears only when current usable stock is at or below the configured minimum.
+
+This matters because existing stock targets predate the planning feature. Adding the planning layer must not silently change their shopping behavior.
 
 Once expected daily consumption is greater than zero, planning becomes proactive: the recommendation aims to cover consumption over the selected horizon and still finish with the configured target reserve.
 
 ## Batch-aware projection
 
-Planning must not treat all current stock as equally usable for the whole horizon.
+Batch-aware horizon projection applies only when `expected_daily_consumption > 0`.
 
 For every day in the horizon:
 
@@ -53,13 +61,23 @@ This produces:
 - `expiredBeforeUseQuantity`
 - `projectedQuantity`
 
+For zero-rate legacy items, `plannedConsumption`, `coveredConsumption`, `unmetConsumption` and `expiredBeforeUseQuantity` remain zero and `projectedQuantity` mirrors current usable stock. The UI must label this as legacy minimum-based monitoring rather than as a horizon forecast.
+
 ## Recommendation
 
-The canonical recommendation is:
+For horizon-planned items (`expected_daily_consumption > 0`), the canonical recommendation is:
 
 `recommended = max(0, target reserve - projected usable stock + unmet planned consumption)`
 
-This is equivalent to buying enough to satisfy missing demand during the horizon and end with the desired reserve, while also accounting for stock that expires before it can remain useful.
+This buys enough to satisfy missing demand during the horizon and end with the desired reserve, while accounting for stock that expires before it can remain useful.
+
+For zero-rate legacy items, the recommendation remains:
+
+`recommended = max(0, target quantity - current usable stock)`
+
+and is surfaced only when:
+
+`current usable stock <= minimum quantity`.
 
 For packaged retail products, the final shopping decision is rounded up to purchasable whole packages using the existing package metadata contract.
 
@@ -67,11 +85,15 @@ For packaged retail products, the final shopping decision is rounded up to purch
 
 An estimated inventory quantity remains numerically usable for deterministic arithmetic, but the plan must not present the result as falsely exact.
 
-A recommendation is marked as estimated when estimated stock actually affects covered consumption or the projected end-of-horizon stock. Estimated stock that expires unused and therefore contributes nothing to the plan does not needlessly contaminate the recommendation.
+For horizon-planned items, a recommendation is marked as estimated when estimated stock actually affects covered consumption or the projected end-of-horizon stock. Estimated stock that expires unused and therefore contributes nothing to the plan does not needlessly contaminate the recommendation.
+
+For zero-rate legacy items, estimate provenance follows current usable stock exactly, matching the previous replenishment behavior.
 
 ## Explainability requirement
 
-The shopping UI must show enough context to reconstruct why a recommendation exists, including at least:
+The shopping UI must show enough context to reconstruct why a recommendation exists.
+
+For horizon-planned items, include at least:
 
 - stock at home now
 - target reserve
@@ -79,6 +101,8 @@ The shopping UI must show enough context to reconstruct why a recommendation exi
 - expected daily consumption
 - stock that becomes unusable because of `use_by`, when relevant
 - unmet consumption before the end of the horizon, when relevant
+
+For zero-rate legacy items, clearly state that the app is using minimum-based monitoring and do not present a fake future projection.
 
 A user should not need to trust a black-box recommendation.
 
