@@ -93,6 +93,28 @@ export function computePurchasePlan(
         (item) => item.batch.quantityIsEstimate === true
       )
 
+      // A zero planning rate is an explicit backward-compatible mode. Existing stock
+      // targets must keep the exact pre-planning replenishment semantics until the
+      // household opts into a daily consumption assumption.
+      if (target.expectedDailyConsumption === 0) {
+        return {
+          ...target,
+          horizonDays,
+          currentQuantity,
+          currentQuantityIsEstimate,
+          plannedConsumption: 0,
+          coveredConsumption: 0,
+          unmetConsumption: 0,
+          expiredBeforeUseQuantity: 0,
+          projectedQuantity: currentQuantity,
+          projectedQuantityIsEstimate: currentQuantityIsEstimate,
+          recommendedQuantity: roundInventoryQuantity(
+            Math.max(0, target.targetQuantity - currentQuantity)
+          ),
+          recommendationIsEstimate: currentQuantityIsEstimate,
+        }
+      }
+
       const plannedConsumption = roundInventoryQuantity(
         target.expectedDailyConsumption * horizonDays
       )
@@ -101,7 +123,6 @@ export function computePurchasePlan(
 
       for (let dayOffset = 0; dayOffset < horizonDays; dayOffset += 1) {
         let remainingDailyNeed = target.expectedDailyConsumption
-        if (remainingDailyNeed <= 0) break
 
         for (const item of simulated) {
           if (remainingDailyNeed <= 0) break
@@ -157,14 +178,10 @@ export function computePurchasePlan(
     })
     .filter((item) => {
       if (item.recommendedQuantity <= 0) return false
-
-      // Preserve the legacy threshold when no consumption assumption is configured,
-      // while allowing proactive planning as soon as the household defines a rate.
-      return (
-        item.expectedDailyConsumption > 0 ||
-        item.projectedQuantity <= item.minimumQuantity ||
-        item.unmetConsumption > 0
-      )
+      if (item.expectedDailyConsumption === 0) {
+        return item.currentQuantity <= item.minimumQuantity
+      }
+      return true
     })
     .sort((a, b) => {
       const aRequirement = a.targetQuantity + a.plannedConsumption
