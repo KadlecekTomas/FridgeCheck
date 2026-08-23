@@ -6,15 +6,17 @@ alter table public.inventory_events
 
 -- Amount-based entry may explicitly record an estimate. Package-aware entry stays
 -- exact at the trusted database boundary because a package count is knowable.
+-- The required boolean sits before optional arguments so this overload never
+-- shadows the legacy seven-argument function used by mixed-expiry package entry.
 create function public.add_batch_to_product(
   p_product_id uuid,
   p_storage_unit_id uuid,
   p_quantity numeric,
   p_unit public.inventory_unit,
+  p_quantity_is_estimate boolean,
   p_expiry_date date default null,
   p_expiry_type public.expiry_type default 'unknown',
-  p_purchased_at date default current_date,
-  p_quantity_is_estimate boolean default false
+  p_purchased_at date default current_date
 )
 returns uuid
 language plpgsql
@@ -119,18 +121,22 @@ end;
 $$;
 
 revoke all on function public.add_batch_to_product(
-  uuid, uuid, numeric, public.inventory_unit, date, public.expiry_type, date, boolean
+  uuid, uuid, numeric, public.inventory_unit, boolean, date, public.expiry_type, date
 ) from public, anon, authenticated;
 grant execute on function public.add_batch_to_product(
-  uuid, uuid, numeric, public.inventory_unit, date, public.expiry_type, date, boolean
+  uuid, uuid, numeric, public.inventory_unit, boolean, date, public.expiry_type, date
 ) to authenticated;
 
+-- Same compatibility rule for create-or-reuse: calls without the required boolean
+-- resolve to the legacy exact-quantity function, while estimate-aware callers use
+-- this signature explicitly.
 create function public.create_or_add_product_batch(
   p_household_id uuid,
   p_storage_unit_id uuid,
   p_name text,
   p_quantity numeric,
   p_unit public.inventory_unit,
+  p_quantity_is_estimate boolean,
   p_expiry_date date default null,
   p_expiry_type public.expiry_type default 'unknown',
   p_brand text default null,
@@ -139,8 +145,7 @@ create function public.create_or_add_product_batch(
   p_image_url text default null,
   p_package_quantity numeric default null,
   p_package_unit public.inventory_unit default null,
-  p_purchased_at date default current_date,
-  p_quantity_is_estimate boolean default false
+  p_purchased_at date default current_date
 )
 returns uuid
 language plpgsql
@@ -310,12 +315,12 @@ end;
 $$;
 
 revoke all on function public.create_or_add_product_batch(
-  uuid, uuid, text, numeric, public.inventory_unit, date, public.expiry_type,
-  text, text, text, text, numeric, public.inventory_unit, date, boolean
+  uuid, uuid, text, numeric, public.inventory_unit, boolean, date, public.expiry_type,
+  text, text, text, text, numeric, public.inventory_unit, date
 ) from public, anon, authenticated;
 grant execute on function public.create_or_add_product_batch(
-  uuid, uuid, text, numeric, public.inventory_unit, date, public.expiry_type,
-  text, text, text, text, numeric, public.inventory_unit, date, boolean
+  uuid, uuid, text, numeric, public.inventory_unit, boolean, date, public.expiry_type,
+  text, text, text, text, numeric, public.inventory_unit, date
 ) to authenticated;
 
 -- Existing three-argument corrections stay compatible. They preserve the current
@@ -393,11 +398,13 @@ begin
 end;
 $$;
 
+-- Estimate-aware corrections use a required third argument, so the legacy call
+-- remains unambiguous. A precision-only correction is a valid audited change.
 create function public.correct_inventory_batch(
   p_batch_id uuid,
   p_new_quantity numeric,
-  p_reason text default null,
-  p_quantity_is_estimate boolean default null
+  p_quantity_is_estimate boolean,
+  p_reason text default null
 )
 returns numeric
 language plpgsql
@@ -486,8 +493,8 @@ begin
 end;
 $$;
 
-revoke all on function public.correct_inventory_batch(uuid, numeric, text, boolean) from public, anon, authenticated;
-grant execute on function public.correct_inventory_batch(uuid, numeric, text, boolean) to authenticated;
+revoke all on function public.correct_inventory_batch(uuid, numeric, boolean, text) from public, anon, authenticated;
+grant execute on function public.correct_inventory_batch(uuid, numeric, boolean, text) to authenticated;
 
 create or replace function public.consume_product_fefo(
   p_product_id uuid,
