@@ -179,27 +179,26 @@ export function PurchasePlanningSection({
                           product.package_quantity,
                           product.package_unit,
                           item.currentQuantityIsEstimate
-                        )} · za {horizonLabel(horizonDays)} bez nákupu{' '}
-                        {formatStockQuantity(
-                          item.projectedQuantity,
-                          item.unit,
-                          product.package_quantity,
-                          product.package_unit,
-                          item.projectedQuantityIsEstimate
-                        )}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-text-muted">
-                        Spotřeba {formatStockQuantity(
-                          item.expectedDailyConsumption,
-                          item.unit,
-                          product.package_quantity,
-                          product.package_unit
-                        )} / den · cílová rezerva {formatStockQuantity(
+                        )} · chci {formatStockQuantity(
                           item.targetQuantity,
                           item.unit,
                           product.package_quantity,
                           product.package_unit
                         )}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-text-muted">
+                        Výhled: za {horizonLabel(horizonDays)} bez nákupu {formatStockQuantity(
+                          item.projectedQuantity,
+                          item.unit,
+                          product.package_quantity,
+                          product.package_unit,
+                          item.projectedQuantityIsEstimate
+                        )} · spotřeba {formatStockQuantity(
+                          item.expectedDailyConsumption,
+                          item.unit,
+                          product.package_quantity,
+                          product.package_unit
+                        )} / den
                       </p>
                       {item.expiredBeforeUseQuantity > 0 ? (
                         <p className="mt-1 text-xs leading-5 text-warning">
