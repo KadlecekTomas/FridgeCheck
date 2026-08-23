@@ -69,6 +69,7 @@ export default function NewInventoryPage() {
   const [lookupStatus, setLookupStatus] = useState<string | null>(null)
   const [entryMode, setEntryMode] = useState<'amount' | 'packages'>('amount')
   const [quantity, setQuantity] = useState('1')
+  const [quantityIsEstimate, setQuantityIsEstimate] = useState(false)
   const [unit, setUnit] = useState<InventoryUnit>('pcs')
   const [packageCount, setPackageCount] = useState('1')
   const [packageQuantity, setPackageQuantity] = useState('1')
@@ -135,6 +136,7 @@ export default function NewInventoryPage() {
     setImageUrl(null)
     setEntryMode('amount')
     setQuantity('1')
+    setQuantityIsEstimate(false)
     setUnit('pcs')
     setPackageCount('1')
     setPackageQuantity('1')
@@ -148,6 +150,7 @@ export default function NewInventoryPage() {
     setEan(normalizedEan)
     setPackageCount('1')
     setQuantity('1')
+    setQuantityIsEstimate(false)
     resetExpirySplit()
     setLookupError(null)
     setImageUrl(product.image_url)
@@ -215,6 +218,7 @@ export default function NewInventoryPage() {
 
       if (payload.product.packageQuantity && payload.product.packageUnit) {
         setEntryMode('packages')
+        setQuantityIsEstimate(false)
         setPackageQuantity(String(payload.product.packageQuantity))
         setPackageUnit(payload.product.packageUnit)
         setUnit(payload.product.packageUnit)
@@ -339,6 +343,7 @@ export default function NewInventoryPage() {
               p_product_id: selectedProduct.id,
               p_storage_unit_id: resolvedStorageId,
               p_quantity: quantityValue,
+              p_quantity_is_estimate: usesPackages ? false : quantityIsEstimate,
               p_unit: selectedProduct.default_unit,
               ...expiryArgs,
             })
@@ -348,6 +353,7 @@ export default function NewInventoryPage() {
             p_storage_unit_id: resolvedStorageId,
             p_name: name.trim(),
             p_quantity: quantityValue,
+            p_quantity_is_estimate: usesPackages ? false : quantityIsEstimate,
             p_unit: resolvedUnit,
             p_brand: brand.trim() || undefined,
             p_ean_code: normalizedEan || undefined,
@@ -370,8 +376,8 @@ export default function NewInventoryPage() {
           ? `${formatPackageCount(Number(packageCount))} uloženo podle ${expiryGroups.length} dat.`
           : `${formatPackageCount(Number(packageCount))} uloženo.`
         : mode === 'existing'
-          ? 'Další zásoba je uložená.'
-          : 'Jídlo je uložené.'
+          ? `Další zásoba je uložená · ${formatQuantity(quantityValue, resolvedUnit, quantityIsEstimate)}.`
+          : `Jídlo je uložené · ${formatQuantity(quantityValue, resolvedUnit, quantityIsEstimate)}.`
     )
     router.push('/inventory')
     router.refresh()
@@ -437,6 +443,7 @@ export default function NewInventoryPage() {
               onClick={() => {
                 setMode('new')
                 setProductId('')
+                setQuantityIsEstimate(false)
                 setLookupStatus(null)
                 resetExpirySplit()
               }}
@@ -450,6 +457,7 @@ export default function NewInventoryPage() {
               type="button"
               onClick={() => {
                 setMode('existing')
+                setQuantityIsEstimate(false)
                 setLookupStatus(null)
                 resetExpirySplit()
               }}
@@ -511,6 +519,7 @@ export default function NewInventoryPage() {
                   if (product?.ean_code) setEan(product.ean_code)
                   setPackageCount('1')
                   setQuantity('1')
+                  setQuantityIsEstimate(false)
                   resetExpirySplit()
                 }}
                 required
@@ -638,6 +647,7 @@ export default function NewInventoryPage() {
                     setEntryMode('amount')
                     setUnit(packageUnit)
                     setQuantity('1')
+                    setQuantityIsEstimate(false)
                     resetExpirySplit()
                   }}
                 >
@@ -672,12 +682,25 @@ export default function NewInventoryPage() {
                   {UNITS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               </div>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-canvas px-3 py-3 sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={quantityIsEstimate}
+                  onChange={(event) => setQuantityIsEstimate(event.target.checked)}
+                  className="mt-0.5 h-5 w-5 rounded border-border accent-primary"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-text">Množství je jen odhad</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-text-muted">Nemusíš jídlo vážit. V přehledech ho označíme jako ≈ a výpočty nebudou předstírat přesnost.</span>
+                </span>
+              </label>
               {mode === 'new' ? (
                 <button
                   type="button"
                   className="inline-flex min-h-11 items-center justify-self-start rounded-lg px-2 text-sm font-semibold text-primary underline-offset-4 hover:bg-primary-soft hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:col-span-2"
                   onClick={() => {
                     setEntryMode('packages')
+                    setQuantityIsEstimate(false)
                     setPackageUnit(unit)
                     setPackageQuantity('1')
                     setPackageCount('1')
