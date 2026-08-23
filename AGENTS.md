@@ -26,6 +26,8 @@ FridgeCheck / HlídačJídla must answer three questions with minimal user effor
 
 The application is inventory-first, expiry-aware and shopping-oriented. The product must reduce household cognitive load; it must not create a second job called “maintaining the inventory app”.
 
+FridgeCheck is one product with a mobile-first web/PWA client and a planned first-class native iOS/Android client. The web/PWA remains the immediate delivery path for proving the complete core loop, but native mobile must be evolved as a durable client of the same backend/domain model rather than treated as throwaway code.
+
 Read `docs/PRODUCT.md` before changing user-facing behavior.
 
 ## Non-negotiable engineering rules
@@ -39,13 +41,14 @@ Read `docs/PRODUCT.md` before changing user-facing behavior.
 - Every critical user flow must have an end-to-end test.
 - New code must be typed. Do not introduce `any` as an escape hatch without a documented reason.
 - Do not silently change data semantics. Schema and domain changes require explicit migrations and tests.
-- Do not expose secrets, service-role keys, tokens or privileged Supabase credentials to client code.
+- Do not expose secrets, service-role keys, tokens or privileged Supabase credentials to any client code, including native bundles.
 - Do not trust client-side authorization. Access control must be enforced by the backend/database boundary, including Supabase RLS where applicable.
 - Do not add dependencies without a concrete benefit. Prefer the platform and existing stack.
 - Do not add speculative abstractions for hypothetical future requirements.
 - Do not preserve bad architecture solely because it already exists.
 - Do preserve user data and backward compatibility unless a migration plan explicitly says otherwise.
 - Do not commit generated dependency directories such as `node_modules`.
+- Do not independently reimplement critical inventory/expiry/replenishment semantics in web and native clients. Prefer shared pure domain logic/contracts or shared test vectors.
 
 ## Required workflow for every task
 
@@ -61,7 +64,9 @@ Prefer the smallest change that completely fixes the real problem. Avoid opportu
 
 ### 3. Implement at the correct layer
 
-Keep business logic independent from UI wherever practical. Inventory calculations, expiry decisions and shopping calculations belong in testable domain modules, not embedded in React components.
+Keep business logic independent from UI wherever practical. Inventory calculations, expiry decisions and shopping calculations belong in testable domain modules, not embedded in Next.js or React Native components.
+
+When both clients need the same mature rule, move toward reusable shared TypeScript modules/contracts incrementally rather than maintaining divergent copies or attempting a big-bang rewrite.
 
 Read `docs/ARCHITECTURE.md` and `docs/DATA_MODEL.md` for structural changes.
 
@@ -70,6 +75,8 @@ Read `docs/ARCHITECTURE.md` and `docs/DATA_MODEL.md` for structural changes.
 Use the test pyramid defined in `docs/TESTING.md`.
 
 At minimum, changed behavior must have the appropriate automated test. Critical flows require E2E coverage.
+
+For shared domain behavior, test the shared implementation/contracts rather than duplicating weaker per-client tests.
 
 ### 5. Validate the repository
 
@@ -107,9 +114,11 @@ A green CI run is necessary but not sufficient. The change must also be behavior
 
 ## Scope discipline
 
-FridgeCheck is currently optimized for a high-quality mobile-first web/PWA experience. Native mobile work is secondary until the web product proves the core workflow in real use.
+The immediate delivery priority is a high-quality mobile-first web/PWA experience because it lets us prove the core workflow fastest. Native iOS/Android is nevertheless a planned first-class client and should be advanced deliberately without duplicating the product or blocking core-loop validation.
 
-Do not divert effort into low-ROI features such as broad AI functionality, retailer integrations or advanced recipe systems before the core loop is excellent:
+Prioritize native work where native capabilities produce real product leverage: barcode/camera capture, push notifications, offline/mobile reliability, justified background/device integrations and later high-frequency entry points such as widgets.
+
+Do not burn engineering time on superficial web/native screen parity before the underlying workflow is valuable and stable. Likewise, do not divert effort into low-ROI features such as broad AI functionality, retailer integrations or advanced recipe systems before the core loop is excellent:
 
 `inventory -> expiry awareness -> consumption -> replenishment -> shopping`
 
@@ -122,6 +131,7 @@ Do not divert effort into low-ROI features such as broad AI functionality, retai
 - The shopping recommendation is derived from current usable stock, stock targets and planned/expected consumption.
 - Expired or unusable stock must not falsely satisfy a replenishment target.
 - When consuming equivalent stock, use the earliest suitable expiry first (FEFO: First Expired, First Out), unless the user explicitly selects another batch.
+- These semantics must remain consistent across web/PWA and native clients.
 
 Read `docs/DATA_MODEL.md` before modifying inventory persistence.
 
@@ -129,14 +139,14 @@ Read `docs/DATA_MODEL.md` before modifying inventory persistence.
 
 Coverage percentage is a signal, not proof. We optimize for defect prevention and confidence in real behavior.
 
-Critical inventory arithmetic and date/expiry logic should reach effectively exhaustive branch coverage. Important UI workflows must be exercised in a real browser. External integrations must be tested against controlled fixtures/mocks and failure cases.
+Critical inventory arithmetic and date/expiry logic should reach effectively exhaustive branch coverage. Important web workflows must be exercised in a real browser. As native becomes feature-bearing, critical native flows must gain appropriate native/device/E2E validation rather than inheriting confidence from web tests alone. External integrations must be tested against controlled fixtures/mocks and failure cases.
 
 ## Security philosophy
 
-Household data is private by default. Users may only access households, storage units, batches and derived data they are authorized to access. Authorization rules must be tested.
+Household data is private by default. Users may only access households, storage units, batches and derived data they are authorized to access. Authorization rules must be tested regardless of which client makes the request.
 
 Read `docs/SECURITY.md` for any auth, Supabase, API, file, analytics or privacy change.
 
 ## When unsure
 
-Choose correctness, simplicity and user-data safety over speed. If two designs are viable, prefer the one that is easier to test, easier to migrate and harder to misuse.
+Choose correctness, simplicity and user-data safety over speed. If two designs are viable, prefer the one that is easier to test, easier to migrate, harder to misuse and less likely to create web/native semantic drift.
