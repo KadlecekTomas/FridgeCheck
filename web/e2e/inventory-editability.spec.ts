@@ -30,9 +30,12 @@ test('user can correct product metadata, storage and expiry with an audit trail'
 
   await page.getByRole('link', { name: 'Více', exact: true }).click()
   await page.getByRole('link', { name: /Úložná místa/ }).click()
+  await expect(page.getByRole('article').filter({ hasText: 'Lednice' })).toBeVisible()
+  const addStorageButton = page.getByRole('button', { name: 'Přidat', exact: true })
   await page.getByLabel('Název').fill('Mrazák')
   await page.getByLabel('Typ').selectOption('freezer')
-  await page.getByRole('button', { name: 'Přidat', exact: true }).click()
+  await expect(addStorageButton).toBeEnabled()
+  await addStorageButton.click()
   await expect(page.getByRole('article').filter({ hasText: 'Mrazák' })).toBeVisible()
 
   await page.getByRole('link', { name: 'Přidat', exact: true }).click()
