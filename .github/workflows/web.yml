@@ -10,9 +10,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - 'web/**'
-      - '.github/workflows/web.yml'
 
 permissions:
   contents: read
@@ -35,8 +32,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect relevant pull-request changes
+        id: relevance
+        if: github.event_name == 'pull_request'
+        working-directory: ${{ github.workspace }}
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/web-ci-changed-files.txt
+          if grep -Eq '^(web/|\.github/workflows/web\.yml$)' /tmp/web-ci-changed-files.txt; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node.js
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         uses: actions/setup-node@v6
         with:
           node-version-file: web/.nvmrc
@@ -44,22 +60,29 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: npm ci
 
       - name: Lint
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: npm run lint
 
       - name: Typecheck
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: npm run typecheck
 
       - name: Unit tests
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: npm test
 
       - name: Critical-domain coverage gate
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: npm run test:coverage
 
       - name: Production build
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: npm run build
 
       - name: Dependency audit
+        if: github.event_name != 'pull_request' || steps.relevance.outputs.run == 'true'
         run: npm audit --audit-level=high
