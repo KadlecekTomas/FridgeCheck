@@ -69,6 +69,7 @@ export type Database = {
           product_id: string
           purchased_at: string | null
           quantity: number
+          quantity_is_estimate: boolean
           status: Database["public"]["Enums"]["batch_status"]
           storage_unit_id: string
           unit: Database["public"]["Enums"]["inventory_unit"]
@@ -85,6 +86,7 @@ export type Database = {
           product_id: string
           purchased_at?: string | null
           quantity: number
+          quantity_is_estimate?: boolean
           status?: Database["public"]["Enums"]["batch_status"]
           storage_unit_id: string
           unit: Database["public"]["Enums"]["inventory_unit"]
@@ -101,6 +103,7 @@ export type Database = {
           product_id?: string
           purchased_at?: string | null
           quantity?: number
+          quantity_is_estimate?: boolean
           status?: Database["public"]["Enums"]["batch_status"]
           storage_unit_id?: string
           unit?: Database["public"]["Enums"]["inventory_unit"]
@@ -117,6 +120,7 @@ export type Database = {
           inventory_batch_id: string | null
           product_id: string
           quantity_delta: number | null
+          quantity_is_estimate: boolean
           reason: string | null
           type: Database["public"]["Enums"]["inventory_event_type"]
           unit: Database["public"]["Enums"]["inventory_unit"] | null
@@ -129,6 +133,7 @@ export type Database = {
           inventory_batch_id?: string | null
           product_id: string
           quantity_delta?: number | null
+          quantity_is_estimate?: boolean
           reason?: string | null
           type: Database["public"]["Enums"]["inventory_event_type"]
           unit?: Database["public"]["Enums"]["inventory_unit"] | null
@@ -141,6 +146,7 @@ export type Database = {
           inventory_batch_id?: string | null
           product_id?: string
           quantity_delta?: number | null
+          quantity_is_estimate?: boolean
           reason?: string | null
           type?: Database["public"]["Enums"]["inventory_event_type"]
           unit?: Database["public"]["Enums"]["inventory_unit"] | null
@@ -327,6 +333,7 @@ export type Database = {
           p_product_id: string
           p_purchased_at?: string
           p_quantity: number
+          p_quantity_is_estimate?: boolean
           p_storage_unit_id: string
           p_unit: Database["public"]["Enums"]["inventory_unit"]
         }
@@ -337,7 +344,12 @@ export type Database = {
         Returns: number
       }
       correct_inventory_batch: {
-        Args: { p_batch_id: string; p_new_quantity: number; p_reason?: string }
+        Args: {
+          p_batch_id: string
+          p_new_quantity: number
+          p_quantity_is_estimate?: boolean
+          p_reason?: string
+        }
         Returns: number
       }
       create_household: {
@@ -358,6 +370,7 @@ export type Database = {
           p_package_unit?: Database["public"]["Enums"]["inventory_unit"]
           p_purchased_at?: string
           p_quantity: number
+          p_quantity_is_estimate?: boolean
           p_storage_unit_id: string
           p_unit: Database["public"]["Enums"]["inventory_unit"]
         }
