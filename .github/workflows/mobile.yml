@@ -44,6 +44,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit dependency graph (triage)
+        run: npm audit --audit-level=low || true
+
       - name: Lint
         run: npm run lint
 
