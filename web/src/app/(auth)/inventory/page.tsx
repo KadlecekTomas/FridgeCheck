@@ -104,22 +104,23 @@ export default function InventoryPage() {
           {products.map((product) => {
             const batches = dashboard.batches.filter((batch) => batch.product_id === product.id && batch.status === 'active')
             const target = dashboard.stockTargets.find((item) => item.product_id === product.id)
-            const currentQuantity = dashboard.batches
-              .filter(
-                (batch) =>
-                  batch.product_id === product.id &&
-                  batch.unit === product.default_unit &&
-                  isBatchUsableForStock({
-                    id: batch.id,
-                    productId: batch.product_id,
-                    quantity: batch.quantity,
-                    unit: batch.unit,
-                    expiryDate: batch.expiry_date,
-                    expiryType: batch.expiry_type,
-                    status: batch.status,
-                  })
-              )
-              .reduce((sum, batch) => sum + batch.quantity, 0)
+            const usableBatches = dashboard.batches.filter(
+              (batch) =>
+                batch.product_id === product.id &&
+                batch.unit === product.default_unit &&
+                isBatchUsableForStock({
+                  id: batch.id,
+                  productId: batch.product_id,
+                  quantity: batch.quantity,
+                  quantityIsEstimate: batch.quantity_is_estimate,
+                  unit: batch.unit,
+                  expiryDate: batch.expiry_date,
+                  expiryType: batch.expiry_type,
+                  status: batch.status,
+                })
+            )
+            const currentQuantity = usableBatches.reduce((sum, batch) => sum + batch.quantity, 0)
+            const currentQuantityIsEstimate = usableBatches.some((batch) => batch.quantity_is_estimate)
             const editorOpen = targetProductId === product.id
 
             return (
@@ -131,8 +132,9 @@ export default function InventoryPage() {
                       {product.brand ? <span className="text-sm text-text-muted">{product.brand}</span> : null}
                     </div>
                     <p className="mt-1 text-sm text-text-muted">
-                      Doma {formatStockQuantity(currentQuantity, product.default_unit, product.package_quantity, product.package_unit)}
+                      Doma {formatStockQuantity(currentQuantity, product.default_unit, product.package_quantity, product.package_unit, currentQuantityIsEstimate)}
                     </p>
+                    {currentQuantityIsEstimate ? <p className="mt-1 text-xs text-text-muted">≈ znamená, že alespoň část množství je evidovaná odhadem.</p> : null}
                     {target ? (
                       <p className="mt-1 text-sm font-medium text-primary">
                         Dochází pod {formatStockQuantity(target.minimum_quantity, target.unit, product.package_quantity, product.package_unit)} · chci mít{' '}
@@ -146,6 +148,7 @@ export default function InventoryPage() {
                       productName={product.name}
                       unit={product.default_unit}
                       availableQuantity={currentQuantity}
+                      availableQuantityIsEstimate={currentQuantityIsEstimate}
                       packageQuantity={product.package_quantity}
                       packageUnit={product.package_unit}
                       onConsumed={dashboard.refresh}
@@ -193,7 +196,7 @@ export default function InventoryPage() {
                             <div key={batch.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                               <div className="min-w-0 flex-1">
                                 <span className="font-semibold text-text">
-                                  {formatStockQuantity(batch.quantity, batch.unit, product.package_quantity, product.package_unit)}
+                                  {formatStockQuantity(batch.quantity, batch.unit, product.package_quantity, product.package_unit, batch.quantity_is_estimate)}
                                 </span>
                                 {storage ? <span className="text-text-muted"> · {storage.name}</span> : null}
                                 <div className="mt-1">
@@ -218,6 +221,7 @@ export default function InventoryPage() {
                                   batchId={batch.id}
                                   productName={product.name}
                                   quantity={batch.quantity}
+                                  quantityIsEstimate={batch.quantity_is_estimate}
                                   unit={batch.unit}
                                   packageQuantity={product.package_quantity}
                                   packageUnit={product.package_unit}
@@ -228,6 +232,7 @@ export default function InventoryPage() {
                                   batchId={batch.id}
                                   productName={product.name}
                                   quantity={batch.quantity}
+                                  quantityIsEstimate={batch.quantity_is_estimate}
                                   unit={batch.unit}
                                   packageQuantity={product.package_quantity}
                                   packageUnit={product.package_unit}
