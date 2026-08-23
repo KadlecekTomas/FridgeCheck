@@ -1,0 +1,202 @@
+name: Approximate quantity client integration (one-shot)
+
+on:
+  push:
+    branches:
+      - feat/approximate-quantity
+    paths:
+      - '.github/workflows/approximate-quantity-ui-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v7
+        with:
+          ref: feat/approximate-quantity
+          fetch-depth: 0
+
+      - name: Integrate estimate semantics through web client
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_str: str, old: str, new: str) -> None:
+              path = Path(path_str)
+              text = path.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path_str}: expected exactly one match, got {count}: {old[:120]!r}')
+              path.write_text(text.replace(old, new, 1))
+
+          # Supabase generated contract: preserve legacy calls while exposing estimate-aware overload args.
+          p = 'web/src/types/supabase-v2.ts'
+          replace_once(p, '          quantity: number\n          status: Database["public"]["Enums"]["batch_status"]', '          quantity: number\n          quantity_is_estimate: boolean\n          status: Database["public"]["Enums"]["batch_status"]')
+          replace_once(p, '          quantity: number\n          status?: Database["public"]["Enums"]["batch_status"]', '          quantity: number\n          quantity_is_estimate?: boolean\n          status?: Database["public"]["Enums"]["batch_status"]')
+          replace_once(p, '          quantity?: number\n          status?: Database["public"]["Enums"]["batch_status"]', '          quantity?: number\n          quantity_is_estimate?: boolean\n          status?: Database["public"]["Enums"]["batch_status"]')
+          replace_once(p, '          quantity_delta: number | null\n          reason: string | null', '          quantity_delta: number | null\n          quantity_is_estimate: boolean\n          reason: string | null')
+          replace_once(p, '          quantity_delta?: number | null\n          reason?: string | null', '          quantity_delta?: number | null\n          quantity_is_estimate?: boolean\n          reason?: string | null')
+          replace_once(p, '          quantity_delta?: number | null\n          reason?: string | null', '          quantity_delta?: number | null\n          quantity_is_estimate?: boolean\n          reason?: string | null')
+          replace_once(p, '          p_quantity: number\n          p_storage_unit_id: string', '          p_quantity: number\n          p_quantity_is_estimate?: boolean\n          p_storage_unit_id: string')
+          replace_once(p, '        Args: { p_batch_id: string; p_new_quantity: number; p_reason?: string }', '        Args: { p_batch_id: string; p_new_quantity: number; p_quantity_is_estimate?: boolean; p_reason?: string }')
+          replace_once(p, '          p_quantity: number\n          p_storage_unit_id: string\n          p_unit: Database["public"]["Enums"]["inventory_unit"]\n        }\n        Returns: string\n      }\n      create_product_with_batch:', '          p_quantity: number\n          p_quantity_is_estimate?: boolean\n          p_storage_unit_id: string\n          p_unit: Database["public"]["Enums"]["inventory_unit"]\n        }\n        Returns: string\n      }\n      create_product_with_batch:')
+
+          # Add-food flow: estimates are explicit for amount-based entry; package counts remain exact.
+          p = 'web/src/app/(auth)/inventory/new/page.tsx'
+          replace_once(p, "  const [quantity, setQuantity] = useState('1')\n  const [unit, setUnit]", "  const [quantity, setQuantity] = useState('1')\n  const [quantityIsEstimate, setQuantityIsEstimate] = useState(false)\n  const [unit, setUnit]")
+          replace_once(p, "    setQuantity('1')\n    setUnit('pcs')", "    setQuantity('1')\n    setQuantityIsEstimate(false)\n    setUnit('pcs')")
+          replace_once(p, "    setQuantity('1')\n    resetExpirySplit()\n    setLookupError", "    setQuantity('1')\n    setQuantityIsEstimate(false)\n    resetExpirySplit()\n    setLookupError")
+          replace_once(p, "                  setQuantity('1')\n                  resetExpirySplit()", "                  setQuantity('1')\n                  setQuantityIsEstimate(false)\n                  resetExpirySplit()")
+          replace_once(p, "                    setQuantity('1')\n                    resetExpirySplit()", "                    setQuantity('1')\n                    setQuantityIsEstimate(false)\n                    resetExpirySplit()")
+          replace_once(p, "              p_quantity: quantityValue,\n              p_unit: selectedProduct.default_unit,", "              p_quantity: quantityValue,\n              p_unit: selectedProduct.default_unit,\n              p_quantity_is_estimate: quantityIsEstimate,")
+          replace_once(p, "            p_quantity: quantityValue,\n            p_unit: resolvedUnit,", "            p_quantity: quantityValue,\n            p_unit: resolvedUnit,\n            p_quantity_is_estimate: quantityIsEstimate,")
+          replace_once(p, "                    setEntryMode('amount')\n                    setUnit(packageUnit)\n                    setQuantity('1')", "                    setEntryMode('amount')\n                    setUnit(packageUnit)\n                    setQuantity('1')\n                    setQuantityIsEstimate(false)")
+          replace_once(p, "                    setEntryMode('packages')\n                    setPackageUnit(unit)", "                    setEntryMode('packages')\n                    setQuantityIsEstimate(false)\n                    setPackageUnit(unit)")
+          replace_once(p, "          <label className=\"block\">\n            <span className=\"field-label\">Kam to dáváš?</span>", "          {!usesPackages ? (\n            <label className=\"flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-canvas/60 p-4\">\n              <input\n                type=\"checkbox\"\n                className=\"mt-1 h-5 w-5 accent-primary\"\n                checked={quantityIsEstimate}\n                onChange={(event) => setQuantityIsEstimate(event.target.checked)}\n              />\n              <span>\n                <span className=\"block text-sm font-semibold text-text\">Jen odhadem</span>\n                <span className=\"mt-1 block text-xs leading-5 text-text-muted\">Číslo dál použijeme pro výpočty, ale všude ho ukážeme s ~, aby nepůsobilo přesněji, než ve skutečnosti je.</span>\n              </span>\n            </label>\n          ) : null}\n\n          <label className=\"block\">\n            <span className=\"field-label\">Kam to dáváš?</span>")
+
+          # Inventory list: aggregate estimate semantics only from usable contributing batches.
+          p = 'web/src/app/(auth)/inventory/page.tsx'
+          old = """            const currentQuantity = dashboard.batches
+              .filter(
+                (batch) =>
+                  batch.product_id === product.id &&
+                  batch.unit === product.default_unit &&
+                  isBatchUsableForStock({
+                    id: batch.id,
+                    productId: batch.product_id,
+                    quantity: batch.quantity,
+                    unit: batch.unit,
+                    expiryDate: batch.expiry_date,
+                    expiryType: batch.expiry_type,
+                    status: batch.status,
+                  })
+              )
+              .reduce((sum, batch) => sum + batch.quantity, 0)
+"""
+          new = """            const usableBatches = dashboard.batches.filter(
+              (batch) =>
+                batch.product_id === product.id &&
+                batch.unit === product.default_unit &&
+                isBatchUsableForStock({
+                  id: batch.id,
+                  productId: batch.product_id,
+                  quantity: batch.quantity,
+                  quantityIsEstimate: batch.quantity_is_estimate,
+                  unit: batch.unit,
+                  expiryDate: batch.expiry_date,
+                  expiryType: batch.expiry_type,
+                  status: batch.status,
+                })
+            )
+            const currentQuantity = usableBatches.reduce((sum, batch) => sum + batch.quantity, 0)
+            const currentQuantityIsEstimate = usableBatches.some((batch) => batch.quantity_is_estimate)
+"""
+          replace_once(p, old, new)
+          replace_once(p, 'Doma {formatStockQuantity(currentQuantity, product.default_unit, product.package_quantity, product.package_unit)}', 'Doma {formatStockQuantity(currentQuantity, product.default_unit, product.package_quantity, product.package_unit, currentQuantityIsEstimate)}')
+          replace_once(p, '                      onConsumed={dashboard.refresh}\n                    />', '                      availableQuantityIsEstimate={currentQuantityIsEstimate}\n                      onConsumed={dashboard.refresh}\n                    />')
+          replace_once(p, '{formatStockQuantity(batch.quantity, batch.unit, product.package_quantity, product.package_unit)}', '{formatStockQuantity(batch.quantity, batch.unit, product.package_quantity, product.package_unit, batch.quantity_is_estimate)}')
+          replace_once(p, '                                  quantity={batch.quantity}\n                                  unit={batch.unit}\n                                  packageQuantity={product.package_quantity}', '                                  quantity={batch.quantity}\n                                  quantityIsEstimate={batch.quantity_is_estimate}\n                                  unit={batch.unit}\n                                  packageQuantity={product.package_quantity}')
+          replace_once(p, '                                  quantity={batch.quantity}\n                                  unit={batch.unit}\n                                  packageQuantity={product.package_quantity}', '                                  quantity={batch.quantity}\n                                  quantityIsEstimate={batch.quantity_is_estimate}\n                                  unit={batch.unit}\n                                  packageQuantity={product.package_quantity}')
+
+          # Correction dialog: quantity and precision are independently repairable.
+          p = 'web/src/components/app/CorrectBatchAction.tsx'
+          replace_once(p, '  quantity: recordedQuantity,\n  unit,', '  quantity: recordedQuantity,\n  quantityIsEstimate = false,\n  unit,')
+          replace_once(p, '  quantity: number\n  unit: string', '  quantity: number\n  quantityIsEstimate?: boolean\n  unit: string')
+          replace_once(p, "  const [quantity, setQuantity] = useState('')\n  const [reason, setReason]", "  const [quantity, setQuantity] = useState('')\n  const [isEstimate, setIsEstimate] = useState(false)\n  const [reason, setReason]")
+          replace_once(p, "      setQuantity('')\n      setReason('')", "      setQuantity('')\n      setIsEstimate(false)\n      setReason('')")
+          replace_once(p, "    setQuantity('')\n    setReason('')", "    setQuantity('')\n    setIsEstimate(false)\n    setReason('')")
+          replace_once(p, "    if (storedValue === recordedQuantity) {\n      setError('Zadej skutečný stav odlišný od hodnoty v aplikaci.')", "    if (storedValue === recordedQuantity && isEstimate === quantityIsEstimate) {\n      setError('Změň množství nebo označení, zda je stav jen odhadem.')")
+          replace_once(p, '      p_new_quantity: storedValue,\n      p_reason:', '      p_new_quantity: storedValue,\n      p_quantity_is_estimate: usesPackages ? false : isEstimate,\n      p_reason:')
+          replace_once(p, "        correctionError.message.includes('Correction must change the quantity')", "        correctionError.message.includes('Correction must change quantity or precision') || correctionError.message.includes('Correction must change the quantity')")
+          replace_once(p, "    toast.success(\n      usesPackages && packageDelta !== null\n        ? `Stav srovnán · ${productName} ${signedDelta > 0 ? '+' : '−'}${formatPackageCount(packageDelta)}`\n        : `Stav srovnán · ${productName} ${signedDelta > 0 ? '+' : ''}${formatQuantity(signedDelta, unit)}`\n    )", "    toast.success(\n      signedDelta === 0\n        ? `Přesnost upravena · ${productName} · ${formatStockQuantity(storedValue, unit, packageQuantity, packageUnit, usesPackages ? false : isEstimate)}`\n        : usesPackages && packageDelta !== null\n          ? `Stav srovnán · ${productName} ${signedDelta > 0 ? '+' : '−'}${formatPackageCount(packageDelta)}`\n          : `Stav srovnán · ${productName} ${signedDelta > 0 ? '+' : ''}${formatQuantity(signedDelta, unit, isEstimate)}`\n    )")
+          replace_once(p, "          setQuantity(String(usesPackages && recordedPackages !== null ? recordedPackages : recordedQuantity))\n          setReason('')", "          setQuantity(String(usesPackages && recordedPackages !== null ? recordedPackages : recordedQuantity))\n          setIsEstimate(usesPackages ? false : quantityIsEstimate)\n          setReason('')")
+          replace_once(p, 'Teď evidujeme {formatStockQuantity(recordedQuantity, unit, packageQuantity, packageUnit)}.', 'Teď evidujeme {formatStockQuantity(recordedQuantity, unit, packageQuantity, packageUnit, quantityIsEstimate)}.')
+          replace_once(p, "              <div>\n                <label htmlFor={reasonId}", "              {!usesPackages ? (\n                <label className=\"flex cursor-pointer items-center gap-3 rounded-xl bg-canvas px-3 py-3 text-sm\">\n                  <input type=\"checkbox\" className=\"h-5 w-5 accent-primary\" checked={isEstimate} onChange={(event) => setIsEstimate(event.target.checked)} />\n                  <span><span className=\"font-semibold text-text\">Je to jen odhad</span><span className=\"ml-1 text-text-muted\">(~)</span></span>\n                </label>\n              ) : null}\n\n              <div>\n                <label htmlFor={reasonId}")
+
+          # Consumption and discard surfaces tell the truth about estimated stock.
+          p = 'web/src/components/app/ConsumeProductAction.tsx'
+          replace_once(p, '  availableQuantity,\n  packageQuantity = null,', '  availableQuantity,\n  availableQuantityIsEstimate = false,\n  packageQuantity = null,')
+          replace_once(p, '  availableQuantity: number\n  packageQuantity?:', '  availableQuantity: number\n  availableQuantityIsEstimate?: boolean\n  packageQuantity?:')
+          replace_once(p, '`Použitelně je doma jen ${formatQuantity(availableQuantity, unit)}.`', '`Použitelně je doma jen ${formatQuantity(availableQuantity, unit, availableQuantityIsEstimate)}.`')
+          replace_once(p, "`Spotřebováno ${usesPackages ? formatPackageCount(enteredValue) : formatQuantity(storedValue, unit)} · ${productName}`", "`Spotřebováno ${usesPackages ? formatPackageCount(enteredValue) : formatQuantity(storedValue, unit, availableQuantityIsEstimate)} · ${productName}`")
+          replace_once(p, '{formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit)}', '{formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit, availableQuantityIsEstimate)}')
+
+          p = 'web/src/components/app/DiscardBatchAction.tsx'
+          replace_once(p, '  quantity: availableQuantity,\n  unit,', '  quantity: availableQuantity,\n  quantityIsEstimate = false,\n  unit,')
+          replace_once(p, '  quantity: number\n  unit: string', '  quantity: number\n  quantityIsEstimate?: boolean\n  unit: string')
+          replace_once(p, '`V této zásobě je jen ${formatQuantity(availableQuantity, unit)}.`', '`V této zásobě je jen ${formatQuantity(availableQuantity, unit, quantityIsEstimate)}.`')
+          replace_once(p, "`Vyřazeno ${usesPackages ? formatPackageCount(enteredValue) : formatQuantity(storedValue, unit)} · ${productName}`", "`Vyřazeno ${usesPackages ? formatPackageCount(enteredValue) : formatQuantity(storedValue, unit, quantityIsEstimate)} · ${productName}`")
+          replace_once(p, '{formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit)}', '{formatStockQuantity(availableQuantity, unit, packageQuantity, packageUnit, quantityIsEstimate)}')
+
+          # Dashboard: exact calculation stays numeric; a single estimated usable batch makes the aggregate/recommendation estimated.
+          p = 'web/src/app/(auth)/dashboard/page.tsx'
+          replace_once(p, '      quantity: batch.quantity,\n      unit: batch.unit,', '      quantity: batch.quantity,\n      quantityIsEstimate: batch.quantity_is_estimate,\n      unit: batch.unit,')
+          marker = """  const urgentConsumeBatchIds = useMemo(() => {
+"""
+          estimate_map = """  const usableEstimateByProduct = useMemo(() => {
+    const now = new Date()
+    return new Map(
+      dashboard.products.map((product) => [
+        product.id,
+        domainBatches.some((batch) =>
+          batch.productId === product.id &&
+          batch.unit === product.default_unit &&
+          batch.quantityIsEstimate === true &&
+          isBatchUsableForStock(batch, now)
+        ),
+      ])
+    )
+  }, [dashboard.products, domainBatches])
+
+  const urgentConsumeBatchIds = useMemo(() => {
+"""
+          replace_once(p, marker, estimate_map)
+          replace_once(p, '{formatStockQuantity(batch.quantity, batch.unit, product?.package_quantity, product?.package_unit)}', '{formatStockQuantity(batch.quantity, batch.unit, product?.package_quantity, product?.package_unit, batch.quantityIsEstimate === true)}')
+          replace_once(p, '                            availableQuantity={availableQuantity}\n                            packageQuantity=', '                            availableQuantity={availableQuantity}\n                            availableQuantityIsEstimate={usableEstimateByProduct.get(product.id) ?? false}\n                            packageQuantity=')
+          replace_once(p, 'Doma {formatStockQuantity(item.currentQuantity, item.unit, product?.package_quantity, product?.package_unit)} · chci', 'Doma {formatStockQuantity(item.currentQuantity, item.unit, product?.package_quantity, product?.package_unit, item.currentQuantityIsEstimate)} · chci')
+          replace_once(p, 'koupit {formatStockQuantity(purchaseQuantity, item.unit, product?.package_quantity, product?.package_unit)}', 'koupit {formatStockQuantity(purchaseQuantity, item.unit, product?.package_quantity, product?.package_unit, item.currentQuantityIsEstimate)}')
+
+          # Shopping recommendation inherits uncertainty from current usable stock, while explicit accepted list items stay concrete decisions.
+          p = 'web/src/app/(auth)/shopping/page.tsx'
+          replace_once(p, '      quantity: batch.quantity,\n      unit: batch.unit,', '      quantity: batch.quantity,\n      quantityIsEstimate: batch.quantity_is_estimate,\n      unit: batch.unit,')
+          replace_once(p, 'Doma {formatStockQuantity(item.currentQuantity, item.unit, product.package_quantity, product.package_unit)} · chci', 'Doma {formatStockQuantity(item.currentQuantity, item.unit, product.package_quantity, product.package_unit, item.currentQuantityIsEstimate)} · chci')
+          replace_once(p, 'aria-label={alreadyAdded ? `${product.name} už je na seznamu` : addingThis ? `Přidávám ${product.name}` : `Přidat ${product.name}: ${formatStockQuantity(purchaseQuantity, item.unit, product.package_quantity, product.package_unit)}`}', 'aria-label={alreadyAdded ? `${product.name} už je na seznamu` : addingThis ? `Přidávám ${product.name}` : `Přidat ${product.name}: ${formatStockQuantity(purchaseQuantity, item.unit, product.package_quantity, product.package_unit, item.currentQuantityIsEstimate)}`}')
+          replace_once(p, "{alreadyAdded ? 'Přidáno' : addingThis ? 'Přidávám…' : formatStockQuantity(purchaseQuantity, item.unit, product.package_quantity, product.package_unit)}", "{alreadyAdded ? 'Přidáno' : addingThis ? 'Přidávám…' : formatStockQuantity(purchaseQuantity, item.unit, product.package_quantity, product.package_unit, item.currentQuantityIsEstimate)}")
+
+          # History event quantities keep estimate provenance through consume/discard/correction.
+          p = 'web/src/domain/inventory/history.ts'
+          replace_once(p, 'export function formatInventoryEventQuantity(delta: number | null, unit: string | null) {', 'export function formatInventoryEventQuantity(delta: number | null, unit: string | null, isEstimate = false) {')
+          replace_once(p, "  return `${sign}${numberFormatter.format(Math.abs(delta))} ${normalizedUnit}`", "  return `${sign}${isEstimate ? '~' : ''}${numberFormatter.format(Math.abs(delta))} ${normalizedUnit}`")
+
+          p = 'web/src/app/(auth)/history/page.tsx'
+          replace_once(p, "  product: Tables<'products'> | undefined\n) {", "  product: Tables<'products'> | undefined,\n  isEstimate: boolean\n) {")
+          replace_once(p, '      return `${sign}${formatPackageCount(packages)}`', '      return `${sign}${formatPackageCount(packages, isEstimate)}`')
+          replace_once(p, '  return formatInventoryEventQuantity(delta, unit)', '  return formatInventoryEventQuantity(delta, unit, isEstimate)')
+          replace_once(p, 'const formattedQuantity = formatEventQuantity(event.quantity_delta, event.unit, product)', 'const formattedQuantity = formatEventQuantity(event.quantity_delta, event.unit, product, event.quantity_is_estimate)')
+
+          # Product/data contract: approximate means numeric estimate, not vague state.
+          p = 'docs/PRODUCT.md'
+          replace_once(p, "Supported precision should match real life. Some items need exact quantities (`6 eggs`, `800 g chicken`); others may be adequately represented by approximate states (`low`, `half`, `full`).\n\nThe UI must not force false precision.", "Supported precision should match real life. Some items need exact quantities (`6 eggs`, `800 g chicken`); others are better recorded as explicit numeric estimates (`~4 eggs`, `~150 g oats`). The estimate marker describes confidence in the number; the canonical numeric value still powers deterministic inventory and shopping arithmetic.\n\nThe UI must not force false precision or hide uncertainty behind vague states when a useful numeric estimate is available.")
+
+          p = 'docs/DATA_MODEL.md'
+          replace_once(p, '- `quantity`\n- `unit`', '- `quantity`\n- `quantity_is_estimate`\n- `unit`')
+          replace_once(p, "Approximate inventory (`low`, `half`, `full`) may be supported as a separate explicit mode; do not pretend approximate states are precise measurements.", "Approximate inventory uses an explicit numeric estimate plus `quantity_is_estimate = true`, for example `~150 g` or `~4 pcs`. The numeric value remains canonical for deterministic arithmetic; the estimate flag must propagate to user-facing stock and derived replenishment so uncertainty is never presented as false precision. Vague states such as `low` / `half` / `full` are not the canonical quantity model.")
+          PY
+
+          git diff --check
+          git status --short
+
+      - name: Commit client integration
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add web docs
+          git diff --cached --exit-code && exit 0
+          git commit -m 'feat(inventory): surface approximate quantity semantics'
+          git pull --rebase origin feat/approximate-quantity
+          git push origin HEAD:feat/approximate-quantity
