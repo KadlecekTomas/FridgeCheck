@@ -25,9 +25,12 @@ jobs:
       run:
         working-directory: web
 
+    # Repository CI must also work for Dependabot PRs, where Actions secrets are
+    # intentionally unavailable. These values are public, non-production build
+    # configuration only; hosted release configuration is verified separately.
     env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_build_only
 
     steps:
       - name: Checkout
