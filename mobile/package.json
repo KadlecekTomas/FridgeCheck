@@ -11,24 +11,24 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.52.0",
-    "expo": "~57.0.15",
-    "expo-constants": "~57.0.13",
+    "@supabase/supabase-js": "^2.112.4",
+    "expo": "~57.0.17",
+    "expo-constants": "~57.0.15",
     "expo-status-bar": "~57.0.1",
-    "react": "19.2.3",
-    "react-native": "0.86.2"
+    "react": "19.2.8",
+    "react-native": "0.87.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@eslint/js": "^9.30.0",
     "@types/react": "~19.2.4",
-    "@typescript-eslint/eslint-plugin": "^8.35.1",
-    "@typescript-eslint/parser": "^8.35.1",
+    "@typescript-eslint/eslint-plugin": "^8.68.0",
+    "@typescript-eslint/parser": "^8.68.0",
     "eslint": "^9.30.0",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^16.2.0",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.35.1"
+    "typescript-eslint": "^8.68.0"
   },
   "private": true
 }
